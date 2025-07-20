@@ -11,9 +11,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const SRC_DIR = path.join(process.cwd(), '../zapq-ui/src');
+// 🔁 LOCALIZED src folder (used by Claude to save/load files)
+const SRC_DIR = path.join(process.cwd(), 'src');
 
-// ✅ Check for Claude API key
+// ✅ Ensure Claude API key is available
 const API_KEY = process.env.ANTHROPIC_API_KEY;
 if (!API_KEY) {
   console.error('❌ Missing ANTHROPIC_API_KEY in .env file!');
@@ -40,6 +41,7 @@ app.get('/files', (req, res) => {
     const files = walk(SRC_DIR);
     res.json({ files });
   } catch (err) {
+    console.error('❌ Failed to list files:', err);
     res.status(500).json({ error: 'Failed to list files' });
   }
 });
