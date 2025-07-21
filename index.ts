@@ -4,6 +4,8 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
+import uploadRouter from './upload.js';
+app.use(uploadRouter);
 
 dotenv.config();
 
