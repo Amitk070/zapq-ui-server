@@ -5,28 +5,28 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
-import uploadRouter from './upload.js';  // <-- keep this, but use later
+import uploadRouter from './upload.js';
 import { buildClaudeProjectPrompt } from './utils/buildClaudeProjectPrompt.js';
+
 dotenv.config();
+
+console.log('Loaded ENV:', {
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? '✅ Present' : '❌ MISSING'
+});
+
+const API_KEY = process.env.ANTHROPIC_API_KEY;
+if (!API_KEY) {
+  console.error('❌ Missing ANTHROPIC_API_KEY in environment variables');
+  process.exit(1);
+}
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// ✅ Mount upload route AFTER app is defined
 app.use(uploadRouter);
 
-// 🔁 LOCALIZED src folder (used by Claude to save/load files)
 const SRC_DIR = path.join(process.cwd(), 'src');
 
-// ✅ Ensure Claude API key is available
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-if (!API_KEY) {
-  console.error('❌ Missing ANTHROPIC_API_KEY in .env file!');
-  process.exit(1);
-}
-
-// ================= File APIs =================
 app.get('/files', (req, res) => {
   const walk = (dir: string): string[] => {
     let results: string[] = [];
@@ -75,7 +75,6 @@ app.post('/save', (req, res) => {
   res.send({ success: true });
 });
 
-// ================= Claude AI Proxy =================
 app.post('/claude', async (req, res) => {
   const { prompt } = req.body;
   try {
@@ -103,11 +102,6 @@ app.post('/claude', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`🚀 Claude backend + file API running at http://localhost:${PORT}`);
-});
-
 app.post('/claude-project', async (req, res) => {
   const { projectPath } = req.body;
   try {
@@ -116,7 +110,7 @@ app.post('/claude-project', async (req, res) => {
     const result = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'x-api-key': API_KEY,
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
@@ -134,4 +128,9 @@ app.post('/claude-project', async (req, res) => {
     console.error('Claude project refactor error:', err);
     res.status(500).json({ success: false, error: 'Claude failed to analyze project' });
   }
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`🚀 Claude backend + file API running on port ${PORT}`);
 });
