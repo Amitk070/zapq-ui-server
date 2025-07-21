@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import uploadRouter from './upload.js';
-import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
+import { buildClaudeProjectPrompt } from './utils/buildClaudeProjectPrompt.js';
 
 dotenv.config();
 
@@ -33,7 +33,7 @@ app.get('/files', (req: Request, res: Response) => {
     const list = fs.readdirSync(dir);
     list.forEach((file) => {
       const filePath = path.join(dir, file);
-      const stat = fs.statSync(filePath);
+      const stat = fs.lstatSync(filePath);
       if (stat && stat.isDirectory()) {
         results = results.concat(walk(filePath));
       } else if (filePath.endsWith('.tsx')) {
@@ -75,6 +75,10 @@ app.post('/save', (req: Request, res: Response) => {
   res.send({ success: true });
 });
 
+interface ClaudeResponse {
+  content?: { text?: string }[];
+}
+
 app.post('/claude', async (req: Request, res: Response) => {
   const { prompt } = req.body;
   try {
@@ -92,7 +96,7 @@ app.post('/claude', async (req: Request, res: Response) => {
       })
     });
 
-    const data = await result.json() as { content?: { text?: string }[] };
+    const data = await result.json() as ClaudeResponse;
     const output = data?.content?.[0]?.text || '';
     console.log('✅ Claude responded');
     res.json({ success: true, output });
@@ -121,7 +125,7 @@ app.post('/claude-project', async (req: Request, res: Response) => {
       })
     });
 
-    const data = await result.json();
+    const data = await result.json() as ClaudeResponse;
     const output = data?.content?.[0]?.text || '';
     res.json({ success: true, output });
   } catch (err) {
