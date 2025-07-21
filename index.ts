@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import uploadRouter from './upload.js';  // <-- keep this, but use later
-
+import { buildClaudeProjectPrompt } from './utils/buildClaudeProjectPrompt.js';
 dotenv.config();
 
 const app = express();
@@ -106,4 +106,32 @@ app.post('/claude', async (req, res) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Claude backend + file API running at http://localhost:${PORT}`);
+});
+
+app.post('/claude-project', async (req, res) => {
+  const { projectPath } = req.body;
+  try {
+    const prompt = buildClaudeProjectPrompt(projectPath);
+
+    const result = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20240620',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await result.json();
+    const output = data?.content?.[0]?.text || '';
+    res.json({ success: true, output });
+  } catch (err) {
+    console.error('Claude project refactor error:', err);
+    res.status(500).json({ success: false, error: 'Claude failed to analyze project' });
+  }
 });
