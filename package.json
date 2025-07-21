@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "index.ts",
   "type": "module",
-  "scripts": {
-    "dev": "ts-node-dev index.ts",
-    "start": "node --loader ts-node/esm index.ts"
-  },
+"scripts": {
+  "dev": "ts-node-dev index.ts",
+  "build": "tsc",
+  "start": "node dist/index.js"
+},
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
