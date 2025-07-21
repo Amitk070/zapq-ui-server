@@ -1,12 +1,14 @@
 {
   "compilerOptions": {
+    "outDir": "dist",
+    "module": "ESNext",
     "target": "ES2020",
-    "module": "ES2020",
     "moduleResolution": "node",
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "outDir": "dist",
-    "rootDir": "./"
+    "skipLibCheck": true,
+    "strict": true
   },
-  "include": ["index.ts"]
+  "include": ["index.ts", "upload.ts", "utils/**/*.ts"]
 }
