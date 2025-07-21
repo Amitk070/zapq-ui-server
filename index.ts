@@ -1,12 +1,12 @@
 // File: index.ts
-import express from 'express';
+import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import uploadRouter from './upload.js';
-import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
+import { buildClaudeProjectPrompt } from './utils/buildClaudeProjectPrompt.js';
 
 dotenv.config();
 
@@ -27,7 +27,7 @@ app.use(uploadRouter);
 
 const SRC_DIR = path.join(process.cwd(), 'src');
 
-app.get('/files', (req, res) => {
+app.get('/files', (req: Request, res: Response) => {
   const walk = (dir: string): string[] => {
     let results: string[] = [];
     const list = fs.readdirSync(dir);
@@ -52,7 +52,7 @@ app.get('/files', (req, res) => {
   }
 });
 
-app.get('/file', (req, res) => {
+app.get('/file', (req: Request, res: Response) => {
   const filePath = req.query.path as string;
   const absPath = path.join(SRC_DIR, filePath);
   if (!absPath.startsWith(SRC_DIR)) {
@@ -65,7 +65,7 @@ app.get('/file', (req, res) => {
   });
 });
 
-app.post('/save', (req, res) => {
+app.post('/save', (req: Request, res: Response) => {
   const { path: filePath, content } = req.body;
   const absPath = path.join(SRC_DIR, filePath);
   if (!absPath.startsWith(SRC_DIR)) return res.status(403).send('Forbidden');
@@ -75,7 +75,7 @@ app.post('/save', (req, res) => {
   res.send({ success: true });
 });
 
-app.post('/claude', async (req, res) => {
+app.post('/claude', async (req: Request, res: Response) => {
   const { prompt } = req.body;
   try {
     const result = await fetch('https://api.anthropic.com/v1/messages', {
@@ -102,7 +102,7 @@ app.post('/claude', async (req, res) => {
   }
 });
 
-app.post('/claude-project', async (req, res) => {
+app.post('/claude-project', async (req: Request, res: Response) => {
   const { projectPath } = req.body;
   try {
     const prompt = buildClaudeProjectPrompt(projectPath);
