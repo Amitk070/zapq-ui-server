@@ -1,17 +1,20 @@
+// File: index.ts
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
-import uploadRouter from './upload.js';
-app.use(uploadRouter);
+import uploadRouter from './upload.js';  // <-- keep this, but use later
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ✅ Mount upload route AFTER app is defined
+app.use(uploadRouter);
 
 // 🔁 LOCALIZED src folder (used by Claude to save/load files)
 const SRC_DIR = path.join(process.cwd(), 'src');
@@ -23,6 +26,7 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+// ================= File APIs =================
 app.get('/files', (req, res) => {
   const walk = (dir: string): string[] => {
     let results: string[] = [];
@@ -71,6 +75,7 @@ app.post('/save', (req, res) => {
   res.send({ success: true });
 });
 
+// ================= Claude AI Proxy =================
 app.post('/claude', async (req, res) => {
   const { prompt } = req.body;
   try {
