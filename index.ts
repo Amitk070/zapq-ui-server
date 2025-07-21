@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import uploadRouter from './upload.js';
-import { buildClaudeProjectPrompt } from './utils/buildClaudeProjectPrompt.js';
+import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
 
 dotenv.config();
 
