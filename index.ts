@@ -20,6 +20,7 @@ if (!API_KEY) {
   console.error('❌ Missing ANTHROPIC_API_KEY in environment variables');
   process.exit(1);
 }
+const safeApiKey: string = API_KEY;
 
 const app = express();
 app.use(cors());
@@ -80,7 +81,7 @@ async function askClaude(prompt: string, max_tokens = 2048): Promise<{ output: s
   const result = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
-      'x-api-key': API_KEY,
+      'x-api-key': safeApiKey,
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json'
     },
