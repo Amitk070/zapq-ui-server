@@ -235,7 +235,7 @@ Respond with ONLY the file path (exactly as listed above). No extra explanation.
 `;
 
     const { output: chosenPathRaw, tokensUsed: step1Tokens } = await askClaude(fileGuessPrompt);
-    const chosenPath = (chosenPathRaw || '').trim();
+    const chosenPath: string = (chosenPathRaw ?? '').trim();
     const absPath = path.join(SRC_DIR, chosenPath);
 
     if (!absPath.startsWith(SRC_DIR) || !fs.existsSync(absPath)) {
