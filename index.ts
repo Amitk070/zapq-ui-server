@@ -28,6 +28,11 @@ app.use(uploadRouter);
 
 const SRC_DIR = path.join(process.cwd(), 'src');
 
+interface ClaudeResponse {
+  content?: { text?: string }[];
+  usage?: { output_tokens?: number };
+}
+
 app.get('/files', (req: Request, res: Response) => {
   const walk = (dir: string): string[] => {
     let results: string[] = [];
@@ -127,7 +132,7 @@ app.post('/generate-project', async (req: Request, res: Response) => {
         messages: [{ role: 'user', content: systemPrompt }]
       })
     });
-    const data = await result.json();
+    const data: ClaudeResponse = await result.json();
     const raw = data?.content?.[0]?.text || '';
     const tokensUsed = data?.usage?.output_tokens || 0;
     const jsonStart = raw.indexOf('[');
@@ -247,7 +252,7 @@ Respond with ONLY the file path (exactly as listed above). No extra explanation.
 `;
 
     const { output: chosenPathRaw, tokensUsed: step1Tokens } = await askClaude(fileGuessPrompt);
-    const chosenPath = chosenPathRaw.trim();
+    const chosenPath = (chosenPathRaw || '').trim();
 
     const absPath = path.join(SRC_DIR, chosenPath);
     if (!absPath.startsWith(SRC_DIR) || !fs.existsSync(absPath)) {
