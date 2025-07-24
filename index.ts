@@ -81,10 +81,6 @@ app.post('/save', (req: Request, res: Response) => {
   res.send({ success: true });
 });
 
-interface ClaudeResponse {
-  content?: { text?: string }[];
-}
-
 app.post('/claude', async (req: Request, res: Response) => {
   const { prompt } = req.body;
   try {
@@ -93,7 +89,7 @@ app.post('/claude', async (req: Request, res: Response) => {
       headers: {
         'x-api-key': API_KEY,
         'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
+        'content-type': 'application/json'
       },
       body: JSON.stringify({
         model: 'claude-3-5-sonnet-20240620',
@@ -101,8 +97,8 @@ app.post('/claude', async (req: Request, res: Response) => {
         messages: [{ role: 'user', content: prompt }]
       })
     });
-    
-    const data = await result.json() as any;
+
+    const data = (await result.json()) as ClaudeResponse;
     const output = data?.content?.[0]?.text || '';
     const tokensUsed = data?.usage?.output_tokens || 0;
     console.log('✅ Claude responded');
@@ -115,7 +111,6 @@ app.post('/claude', async (req: Request, res: Response) => {
 
 app.post('/generate-project', async (req: Request, res: Response) => {
   const { userPrompt } = req.body;
-
   const systemPrompt = buildProjectGenPrompt(userPrompt);
 
   try {
@@ -124,7 +119,7 @@ app.post('/generate-project', async (req: Request, res: Response) => {
       headers: {
         'x-api-key': API_KEY,
         'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
+        'content-type': 'application/json'
       },
       body: JSON.stringify({
         model: 'claude-3-5-sonnet-20240620',
@@ -132,30 +127,26 @@ app.post('/generate-project', async (req: Request, res: Response) => {
         messages: [{ role: 'user', content: systemPrompt }]
       })
     });
-    const data: ClaudeResponse = await result.json();
+
+    const data = (await result.json()) as ClaudeResponse;
     const raw = data?.content?.[0]?.text || '';
     const tokensUsed = data?.usage?.output_tokens || 0;
     const jsonStart = raw.indexOf('[');
     const jsonEnd = raw.lastIndexOf(']') + 1;
     const fileArray = JSON.parse(raw.slice(jsonStart, jsonEnd));
 
-    // Save files
     fileArray.forEach(({ path: filePath, content }: any) => {
       const absPath = path.join(process.cwd(), filePath);
       fs.mkdirSync(path.dirname(absPath), { recursive: true });
       fs.writeFileSync(absPath, content, 'utf-8');
     });
-  res.json({
-  success: true,
-  files: fileArray.map((f: any) => f.path),
-  tokensUsed
-  });
+
+    res.json({ success: true, files: fileArray.map((f: any) => f.path), tokensUsed });
   } catch (err) {
     console.error('🚨 Claude project generation error:', err);
     res.status(500).json({ success: false, error: 'Failed to generate project' });
   }
 });
-
 
 app.post('/claude-project', async (req: Request, res: Response) => {
   const { projectPath } = req.body;
@@ -167,7 +158,7 @@ app.post('/claude-project', async (req: Request, res: Response) => {
       headers: {
         'x-api-key': API_KEY,
         'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
+        'content-type': 'application/json'
       },
       body: JSON.stringify({
         model: 'claude-3-5-sonnet-20240620',
@@ -176,20 +167,14 @@ app.post('/claude-project', async (req: Request, res: Response) => {
       })
     });
 
-    const data = await result.json() as any;
+    const data = (await result.json()) as ClaudeResponse;
     const output = data?.content?.[0]?.text || '';
     const tokensUsed = data?.usage?.output_tokens || 0;
     res.json({ success: true, output, tokensUsed });
-
   } catch (err) {
     console.error('Claude project refactor error:', err);
     res.status(500).json({ success: false, error: 'Claude failed to analyze project' });
   }
-});
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`🚀 Claude backend + file API running on port ${PORT}`);
 });
 
 async function askClaude(prompt: string, max_tokens = 2048) {
@@ -198,7 +183,7 @@ async function askClaude(prompt: string, max_tokens = 2048) {
     headers: {
       'x-api-key': API_KEY,
       'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
+      'content-type': 'application/json'
     },
     body: JSON.stringify({
       model: 'claude-3-5-sonnet-20240620',
@@ -207,7 +192,7 @@ async function askClaude(prompt: string, max_tokens = 2048) {
     })
   });
 
-  const data = await result.json();
+  const data = (await result.json()) as ClaudeResponse;
   const output = data?.content?.[0]?.text || '';
   const tokensUsed = data?.usage?.output_tokens || 0;
   return { output, tokensUsed };
@@ -217,7 +202,6 @@ app.post('/edit-file', async (req: Request, res: Response) => {
   const { userPrompt } = req.body;
 
   try {
-    // 1. List all .tsx files
     const walk = (dir: string): string[] => {
       let results: string[] = [];
       const list = fs.readdirSync(dir);
@@ -235,7 +219,6 @@ app.post('/edit-file', async (req: Request, res: Response) => {
 
     const fileList = walk(SRC_DIR);
 
-    // 2. Ask Claude which file should be edited
     const fileGuessPrompt = `
 You are a developer assistant.
 
@@ -253,16 +236,14 @@ Respond with ONLY the file path (exactly as listed above). No extra explanation.
 
     const { output: chosenPathRaw, tokensUsed: step1Tokens } = await askClaude(fileGuessPrompt);
     const chosenPath = (chosenPathRaw || '').trim();
-
     const absPath = path.join(SRC_DIR, chosenPath);
+
     if (!absPath.startsWith(SRC_DIR) || !fs.existsSync(absPath)) {
       return res.status(400).json({ success: false, error: 'Invalid or unknown file suggested by Claude.' });
     }
 
-    // 3. Load the file
     const originalCode = fs.readFileSync(absPath, 'utf-8');
 
-    // 4. Ask Claude to apply the change
     const editPrompt = `
 You are a TypeScript + Tailwind CSS code assistant.
 
@@ -280,7 +261,6 @@ Respond ONLY with the updated code in \`\`\`tsx\`\`\` format.
 `;
 
     const { output: updatedRaw, tokensUsed: step2Tokens } = await askClaude(editPrompt);
-
     const match = updatedRaw.match(/```(?:tsx)?\s*([\s\S]+?)```/);
     const updatedCode = match ? match[1].trim() : updatedRaw;
 
@@ -291,9 +271,13 @@ Respond ONLY with the updated code in \`\`\`tsx\`\`\` format.
       updatedPath: chosenPath,
       tokensUsed: step1Tokens + step2Tokens
     });
-
   } catch (err) {
     console.error('❌ edit-file error:', err);
     res.status(500).json({ success: false, error: 'Failed to edit file' });
   }
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`🚀 Claude backend + file API running on port ${PORT}`);
 });
