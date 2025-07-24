@@ -28,11 +28,6 @@ app.use(uploadRouter);
 
 const SRC_DIR = path.join(process.cwd(), 'src');
 
-interface ClaudeResponse {
-  content?: { text?: string }[];
-  usage?: { output_tokens?: number };
-}
-
 app.get('/files', (req: Request, res: Response) => {
   const walk = (dir: string): string[] => {
     let results: string[] = [];
@@ -81,26 +76,45 @@ app.post('/save', (req: Request, res: Response) => {
   res.send({ success: true });
 });
 
+async function askClaude(prompt: string, max_tokens = 2048): Promise<{ output: string; tokensUsed: number }> {
+  const result = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': API_KEY,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'claude-3-5-sonnet-20240620',
+      max_tokens,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  const raw: unknown = await result.json();
+
+  const output =
+    typeof raw === 'object' &&
+    raw !== null &&
+    Array.isArray((raw as any).content) &&
+    typeof (raw as any).content[0]?.text === 'string'
+      ? (raw as any).content[0].text
+      : '';
+
+  const tokensUsed =
+    typeof raw === 'object' &&
+    raw !== null &&
+    typeof (raw as any).usage?.output_tokens === 'number'
+      ? (raw as any).usage.output_tokens
+      : 0;
+
+  return { output, tokensUsed };
+}
+
 app.post('/claude', async (req: Request, res: Response) => {
   const { prompt } = req.body;
   try {
-    const result = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20240620',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    const data = (await result.json()) as ClaudeResponse;
-    const output = data?.content?.[0]?.text || '';
-    const tokensUsed = data?.usage?.output_tokens || 0;
+    const { output, tokensUsed } = await askClaude(prompt, 1024);
     console.log('✅ Claude responded');
     res.json({ success: true, output, tokensUsed });
   } catch (err) {
@@ -114,23 +128,7 @@ app.post('/generate-project', async (req: Request, res: Response) => {
   const systemPrompt = buildProjectGenPrompt(userPrompt);
 
   try {
-    const result = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20240620',
-        max_tokens: 4096,
-        messages: [{ role: 'user', content: systemPrompt }]
-      })
-    });
-
-    const data = (await result.json()) as ClaudeResponse;
-    const raw = data?.content?.[0]?.text || '';
-    const tokensUsed = data?.usage?.output_tokens || 0;
+    const { output: raw, tokensUsed } = await askClaude(systemPrompt, 4096);
     const jsonStart = raw.indexOf('[');
     const jsonEnd = raw.lastIndexOf(']') + 1;
     const fileArray = JSON.parse(raw.slice(jsonStart, jsonEnd));
@@ -152,57 +150,13 @@ app.post('/claude-project', async (req: Request, res: Response) => {
   const { projectPath } = req.body;
   try {
     const prompt = buildClaudeProjectPrompt(projectPath);
-
-    const result = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20240620',
-        max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    const data = (await result.json()) as ClaudeResponse;
-    const output = data?.content?.[0]?.text || '';
-    const tokensUsed = data?.usage?.output_tokens || 0;
+    const { output, tokensUsed } = await askClaude(prompt, 2048);
     res.json({ success: true, output, tokensUsed });
   } catch (err) {
     console.error('Claude project refactor error:', err);
     res.status(500).json({ success: false, error: 'Claude failed to analyze project' });
   }
 });
-
-async function askClaude(prompt: string, max_tokens = 2048): Promise<{ output: string; tokensUsed: number }> {
-  const result = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20240620',
-      max_tokens,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-
-  const raw = await result.json();
-
-  // Defensive parse to guarantee types
-  const output: string =
-    typeof raw?.content?.[0]?.text === 'string' ? raw.content[0].text : '';
-  const tokensUsed: number =
-    typeof raw?.usage?.output_tokens === 'number' ? raw.usage.output_tokens : 0;
-
-  return { output, tokensUsed };
-}
-
 
 app.post('/edit-file', async (req: Request, res: Response) => {
   const { userPrompt } = req.body;
@@ -241,7 +195,7 @@ Respond with ONLY the file path (exactly as listed above). No extra explanation.
 `;
 
     const { output: chosenPathRaw, tokensUsed: step1Tokens } = await askClaude(fileGuessPrompt);
-    const chosenPath = (chosenPathRaw ?? '').trim();
+    const chosenPath: string = (chosenPathRaw ?? '').trim();
     const absPath = path.join(SRC_DIR, chosenPath);
 
     if (!absPath.startsWith(SRC_DIR) || !fs.existsSync(absPath)) {
