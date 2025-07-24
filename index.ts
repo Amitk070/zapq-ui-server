@@ -197,9 +197,8 @@ Respond with ONLY the file path (exactly as listed above). No extra explanation.
 
     const { output: chosenPathRaw, tokensUsed: step1Tokens } = await askClaude(fileGuessPrompt);
     const normalized = (chosenPathRaw || '').trim().replace(/^\/+/, '');
-    const chosenPath = fileList.find(f => f.endsWith(normalized));
+    const chosenPath = fileList.find(f => f.endsWith(normalized)) ?? '';
     const absPath = path.join(SRC_DIR, chosenPath);
-
     if (!absPath.startsWith(SRC_DIR) || !fs.existsSync(absPath)) {
       return res.status(400).json({ success: false, error: 'Invalid or unknown file suggested by Claude.' });
     }
