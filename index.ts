@@ -106,6 +106,48 @@ app.post('/claude', async (req: Request, res: Response) => {
   }
 });
 
+app.post('/generate-project', async (req: Request, res: Response) => {
+  const { userPrompt } = req.body;
+
+  const systemPrompt = buildProjectGenPrompt(userPrompt);
+
+  try {
+    const result = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20240620',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: systemPrompt }]
+      })
+    });
+
+    const data = await result.json();
+    const raw = data?.content?.[0]?.text || '';
+
+    const jsonStart = raw.indexOf('[');
+    const jsonEnd = raw.lastIndexOf(']') + 1;
+    const fileArray = JSON.parse(raw.slice(jsonStart, jsonEnd));
+
+    // Save files
+    fileArray.forEach(({ path: filePath, content }: any) => {
+      const absPath = path.join(process.cwd(), filePath);
+      fs.mkdirSync(path.dirname(absPath), { recursive: true });
+      fs.writeFileSync(absPath, content, 'utf-8');
+    });
+
+    res.json({ success: true, files: fileArray.map((f: any) => f.path) });
+  } catch (err) {
+    console.error('🚨 Claude project generation error:', err);
+    res.status(500).json({ success: false, error: 'Failed to generate project' });
+  }
+});
+
+
 app.post('/claude-project', async (req: Request, res: Response) => {
   const { projectPath } = req.body;
   try {
