@@ -95,11 +95,12 @@ app.post('/claude', async (req: Request, res: Response) => {
         messages: [{ role: 'user', content: prompt }]
       })
     });
-
-    const data = await result.json() as ClaudeResponse;
+    
+    const data = await result.json() as any;
     const output = data?.content?.[0]?.text || '';
+    const tokensUsed = data?.usage?.output_tokens || 0;
     console.log('✅ Claude responded');
-    res.json({ success: true, output });
+    res.json({ success: true, output, tokensUsed });
   } catch (err) {
     console.error('Claude API error:', err);
     res.status(500).json({ success: false, error: 'Claude request failed' });
@@ -125,10 +126,9 @@ app.post('/generate-project', async (req: Request, res: Response) => {
         messages: [{ role: 'user', content: systemPrompt }]
       })
     });
-
     const data = await result.json();
     const raw = data?.content?.[0]?.text || '';
-
+    const tokensUsed = data?.usage?.output_tokens || 0;
     const jsonStart = raw.indexOf('[');
     const jsonEnd = raw.lastIndexOf(']') + 1;
     const fileArray = JSON.parse(raw.slice(jsonStart, jsonEnd));
@@ -139,8 +139,11 @@ app.post('/generate-project', async (req: Request, res: Response) => {
       fs.mkdirSync(path.dirname(absPath), { recursive: true });
       fs.writeFileSync(absPath, content, 'utf-8');
     });
-
-    res.json({ success: true, files: fileArray.map((f: any) => f.path) });
+  res.json({
+  success: true,
+  files: fileArray.map((f: any) => f.path),
+  tokensUsed
+  });
   } catch (err) {
     console.error('🚨 Claude project generation error:', err);
     res.status(500).json({ success: false, error: 'Failed to generate project' });
@@ -167,9 +170,11 @@ app.post('/claude-project', async (req: Request, res: Response) => {
       })
     });
 
-    const data = await result.json() as ClaudeResponse;
+    const data = await result.json() as any;
     const output = data?.content?.[0]?.text || '';
-    res.json({ success: true, output });
+    const tokensUsed = data?.usage?.output_tokens || 0;
+    res.json({ success: true, output, tokensUsed });
+
   } catch (err) {
     console.error('Claude project refactor error:', err);
     res.status(500).json({ success: false, error: 'Claude failed to analyze project' });
