@@ -177,7 +177,7 @@ app.post('/claude-project', async (req: Request, res: Response) => {
   }
 });
 
-async function askClaude(prompt: string, max_tokens = 2048) {
+async function askClaude(prompt: string, max_tokens = 2048): Promise<{ output: string; tokensUsed: number }> {
   const result = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
