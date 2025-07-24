@@ -192,11 +192,17 @@ async function askClaude(prompt: string, max_tokens = 2048): Promise<{ output: s
     })
   });
 
-  const data = (await result.json()) as ClaudeResponse;
-  const output = data?.content?.[0]?.text || '';
-  const tokensUsed = data?.usage?.output_tokens || 0;
+  const raw = await result.json();
+
+  // Defensive parse to guarantee types
+  const output: string =
+    typeof raw?.content?.[0]?.text === 'string' ? raw.content[0].text : '';
+  const tokensUsed: number =
+    typeof raw?.usage?.output_tokens === 'number' ? raw.usage.output_tokens : 0;
+
   return { output, tokensUsed };
 }
+
 
 app.post('/edit-file', async (req: Request, res: Response) => {
   const { userPrompt } = req.body;
