@@ -8,6 +8,7 @@ import fetch from 'node-fetch';
 import uploadRouter from './upload.js';
 import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
 import { buildProjectGenPrompt } from './buildProjectGenPrompt.js';
+const { findBestFileToEdit, buildEditPrompt } = require('./utils.js');
 
 dotenv.config();
 
