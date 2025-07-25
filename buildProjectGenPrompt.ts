@@ -1,15 +1,37 @@
 export function buildProjectGenPrompt(userPrompt: string): string {
   return `
-You are an expert React + TypeScript + Tailwind developer.
+You are a senior React developer.
 
-Please generate a complete project based on the following request:
-
+The user wants to build this app:
 "${userPrompt}"
 
-Respond ONLY with a JSON array of objects. Each object must include:
-- "path": string (e.g. "src/App.tsx")
-- "content": string (full file contents)
+Generate a **complete React + TypeScript + Tailwind CSS** project using Vite.
 
-Do not include explanations or markdown formatting. Output must begin with '[' and end with ']'.
-`;
+🧱 Required files:
+
+- package.json
+- vite.config.ts
+- tsconfig.json
+- tailwind.config.js
+- postcss.config.js
+- src/index.css
+- src/main.tsx
+- src/App.tsx
+- src/pages/\*.tsx (any necessary pages)
+- src/components/\*.tsx (any reusable UI pieces)
+
+💡 Constraints:
+
+- Use functional components
+- Use semantic HTML
+- Use Tailwind CSS for styling
+- Return **only a JSON array** of objects:
+  [
+    { "path": "src/App.tsx", "content": "..." },
+    { "path": "src/pages/About.tsx", "content": "..." },
+    ...
+  ]
+
+Do not include explanations, markdown, or extra text. Output must be clean JSON.
+  `.trim();
 }
