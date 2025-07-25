@@ -54,6 +54,58 @@ app.get('/files', (req: Request, res: Response) => {
   }
 });
 
+app.post('/chat', async (req: Request, res: Response) => {
+  const { userPrompt, context } = req.body;
+  
+  try {
+    // Determine if this is a code generation request
+    const isCodeRequest = userPrompt.toLowerCase().includes('create') && 
+                         (userPrompt.toLowerCase().includes('react') || 
+                          userPrompt.toLowerCase().includes('component'));
+
+    // Enhanced prompt engineering
+    let systemPrompt = userPrompt;
+    if (isCodeRequest) {
+      systemPrompt = buildCodeGenPrompt(userPrompt, context);
+    }
+
+    const { output, tokensUsed } = await askClaude(systemPrompt);
+    
+    res.json({ 
+      success: true, 
+      response: output,
+      tokensUsed,
+      responseType: isCodeRequest ? 'code' : 'text'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/smart-edit', async (req: Request, res: Response) => {
+  const { userPrompt, availableFiles } = req.body;
+  
+  try {
+    // Find best file to edit
+    const targetFile = findBestFileToEdit(userPrompt, availableFiles);
+    
+    // Create edit prompt
+    const editPrompt = buildEditPrompt(userPrompt, targetFile);
+    
+    const { output, tokensUsed } = await askClaude(editPrompt);
+    
+    res.json({
+      success: true,
+      filePath: targetFile.path,
+      beforeContent: targetFile.content,
+      afterContent: output,
+      tokensUsed
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/file', (req: Request, res: Response) => {
   const filePath = req.query.path as string;
   const absPath = path.join(SRC_DIR, filePath);
