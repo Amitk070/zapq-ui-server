@@ -67,7 +67,7 @@ app.post('/chat', async (req: Request, res: Response) => {
     // Enhanced prompt engineering
     let systemPrompt = userPrompt;
     if (isCodeRequest) {
-      systemPrompt = buildProjectGenPrompt(userPrompt, context);
+      systemPrompt = buildProjectGenPrompt(userPrompt);
     }
 
     const { output, tokensUsed } = await askClaude(systemPrompt);
@@ -79,7 +79,7 @@ app.post('/chat', async (req: Request, res: Response) => {
       responseType: isCodeRequest ? 'code' : 'text'
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'claud couldnt process your request' });
   }
 });
 
@@ -103,7 +103,7 @@ app.post('/smart-edit', async (req: Request, res: Response) => {
       tokensUsed
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: ' failed to edit file' });
   }
 });
 
