@@ -34,4 +34,8 @@ Generate a **complete React + TypeScript + Tailwind CSS** project using Vite.
 
 Do not include explanations, markdown, or extra text. Output must be clean JSON.
   `.trim();
+ - Make sure the project is 100% ready to run:
+- The user should be able to run: npm install && npm run dev
+- The browser should show a working homepage
+
 }
