@@ -66,7 +66,7 @@ app.post('/chat', async (req: Request, res: Response) => {
     // Enhanced prompt engineering
     let systemPrompt = userPrompt;
     if (isCodeRequest) {
-      systemPrompt = buildCodeGenPrompt(userPrompt, context);
+      systemPrompt = buildProjectGenPrompt(userPrompt, context);
     }
 
     const { output, tokensUsed } = await askClaude(systemPrompt);
