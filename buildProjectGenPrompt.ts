@@ -5,7 +5,9 @@ You are a senior React developer.
 The user wants to build this app:
 "${userPrompt}"
 
-Generate a complete React + TypeScript + Tailwind CSS project using Vite.
+Generate a complete, production-ready React + TypeScript + Tailwind CSS project using Vite.
+
+✅ Every file must include real, working code — no placeholders or empty content.
 
 Required files:
 - package.json
@@ -16,19 +18,21 @@ Required files:
 - src/index.css
 - src/main.tsx
 - src/App.tsx
-- src/pages/*.tsx (any necessary pages)
-- src/components/*.tsx (any reusable UI pieces)
+- src/pages/*.tsx (pages as needed)
+- src/components/*.tsx (reusable UI components)
 
 Constraints:
 - Use functional components
 - Use semantic HTML
 - Use Tailwind CSS for styling
-- Return only a JSON array of objects like:
-  [
-    { "path": "src/App.tsx", "content": "..." },
-    { "path": "src/pages/About.tsx", "content": "..." }
-  ]
+- Do not include markdown, comments, or extra explanation
 
-Do not include explanations or markdown. Output must be clean JSON only.
+Return only a valid JSON array:
+[
+  { "path": "src/App.tsx", "content": "// full working code here" },
+  { "path": "src/pages/About.tsx", "content": "// full code" }
+]
+
+Do NOT skip any required file. Do NOT leave content empty.
   `.trim();
 }
