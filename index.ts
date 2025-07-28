@@ -7,7 +7,88 @@ import fetch from 'node-fetch';
 import uploadRouter from './upload.js';
 import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
 import { buildProjectGenPrompt } from './buildProjectGenPrompt.js';
-const { findBestFileToEdit, buildEditPrompt } = require('./utils.js');
+
+// Inline the utils functions to avoid ES module conflicts
+function findBestFileToEdit(userPrompt: string, availableFiles: any[]) {
+  if (availableFiles.length === 0) {
+    throw new Error('No files available for editing');
+  }
+
+  const prompt = userPrompt.toLowerCase();
+  let bestFile = availableFiles[0];
+  let highestScore = 0;
+
+  // Keyword patterns for file matching
+  const patterns = [
+    { keywords: ['login', 'signin', 'auth'], weight: 10 },
+    { keywords: ['header', 'nav', 'navigation'], weight: 10 },
+    { keywords: ['footer'], weight: 10 },
+    { keywords: ['home', 'landing', 'main'], weight: 8 },
+    { keywords: ['dashboard', 'admin'], weight: 8 },
+    { keywords: ['profile', 'account'], weight: 8 },
+    { keywords: ['settings', 'config'], weight: 6 },
+    { keywords: ['button', 'form'], weight: 5 },
+  ];
+
+  for (const file of availableFiles) {
+    let score = 0;
+    const filePath = file.path.toLowerCase();
+    const content = file.content.toLowerCase();
+
+    // Check keyword matches
+    for (const pattern of patterns) {
+      const hasKeyword = pattern.keywords.some(keyword => prompt.includes(keyword));
+      if (hasKeyword) {
+        // Bonus if file path contains relevant keywords
+        const pathMatch = pattern.keywords.some(keyword => filePath.includes(keyword));
+        const contentMatch = pattern.keywords.some(keyword => content.includes(keyword));
+
+        if (pathMatch) score += pattern.weight * 2;
+        if (contentMatch) score += pattern.weight;
+      }
+    }
+
+    // Prefer React component files
+    if (filePath.endsWith('.tsx') || filePath.endsWith('.jsx')) {
+      score += 3;
+    }
+
+    // Prefer component/page directories
+    if (filePath.includes('component') || filePath.includes('page')) {
+      score += 3;
+    }
+
+    // Avoid config files
+    if (filePath.includes('config') || filePath.includes('package.json')) {
+      score -= 10;
+    }
+
+    if (score > highestScore) {
+      highestScore = score;
+      bestFile = file;
+    }
+  }
+
+  return bestFile;
+}
+
+function buildEditPrompt(userPrompt: string, targetFile: { path: string; content: string }) {
+  return `You are a TypeScript + Tailwind CSS code assistant.
+
+Apply the following user request to the file:
+
+Request:
+"${userPrompt}"
+
+Current contents of ${targetFile.path}:
+\`\`\`tsx
+${targetFile.content}
+\`\`\`
+
+Important: Return ONLY the updated code. Do not include explanations, markdown formatting, or file path comments. Just return the raw updated code that should replace the current file content.
+
+Make minimal, focused changes that directly address the user's request while preserving the existing code structure and style.`;
+}
 
 dotenv.config();
 
@@ -262,7 +343,7 @@ app.post('/generate-project', async (req: Request, res: Response) => {
       // Fallback: Try to extract files using regex patterns
       console.log('🔄 Attempting fallback parsing...');
       
-      const fileMatches = [...raw.matchAll(/"path":\s*"([^"]+)",\s*"content":\s*"([^"]*(?:\\.[^"]*)*)"/g)];
+      const fileMatches = Array.from(raw.matchAll(/"path":\s*"([^"]+)",\s*"content":\s*"([^"]*(?:\\.[^"]*)*)"/g));
       
       if (fileMatches.length === 0) {
         throw new Error(`Failed to parse Claude response. JSON error: ${jsonError instanceof Error ? jsonError.message : 'Unknown parsing error'}`);
