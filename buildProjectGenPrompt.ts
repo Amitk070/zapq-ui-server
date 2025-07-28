@@ -61,15 +61,73 @@ export function buildProjectGenPrompt(userPrompt: string): string {
       
       case 'portfolio':
         return `
-        Create a professional portfolio website with:
-        - Hero section with introduction
-        - Projects showcase with images
-        - About page with skills
-        - Contact form
-        - Resume/CV page
-        - Smooth animations
-        - Mobile-first design
-        - Professional color scheme
+        Create a complete, professional portfolio website with:
+        
+        **Hero Section:**
+        - Professional headshot or avatar
+        - Name and professional title (e.g., "Full Stack Developer")
+        - Brief tagline/elevator pitch
+        - Call-to-action buttons (Contact, Download Resume)
+        - Professional background gradient or pattern
+        
+        **About Section:**
+        - Professional summary (3-4 sentences)
+        - Technical skills with progress bars or icons
+        - Years of experience
+        - Current role/status
+        - Personal interests (optional)
+        
+        **Projects Showcase:**
+        - At least 3-4 sample projects with:
+          * Project names and descriptions
+          * Technology stack used
+          * Live demo and GitHub links (placeholder)
+          * Project screenshots (use placeholder images)
+          * Key features and achievements
+        
+        **Experience/Timeline:**
+        - Work experience or education timeline
+        - Company names, roles, and dates
+        - Key responsibilities and achievements
+        - Technologies used in each role
+        
+        **Testimonials Section:**
+        - 2-3 professional testimonials with:
+          * Client/colleague names and titles
+          * Company names
+          * Professional photos (placeholder)
+          * Meaningful review content
+        
+        **Contact Section:**
+        - Contact form with name, email, message fields
+        - Professional email and phone
+        - Social media links (LinkedIn, GitHub, Twitter)
+        - Location (city/state)
+        - Professional availability status
+        
+        **Design Requirements:**
+        - Modern, clean design with professional color scheme
+        - Dark/light mode toggle
+        - Smooth scroll animations and hover effects
+        - Mobile-responsive design (mobile-first)
+        - Professional typography
+        - Consistent spacing and layout
+        - Loading animations for better UX
+        
+        **Technical Features:**
+        - React components for each section
+        - TypeScript for type safety
+        - Tailwind CSS for styling
+        - Lucide React icons
+        - Proper SEO meta tags
+        - Accessibility compliance (ARIA labels)
+        - Performance optimization
+        
+        **Content Requirements:**
+        - Use realistic, professional content (not Lorem Ipsum)
+        - Include actual skill names and technologies
+        - Professional writing tone
+        - Complete, deployable portfolio ready for use
         `;
       
       case 'chat-app':
