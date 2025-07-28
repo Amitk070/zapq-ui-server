@@ -23,7 +23,17 @@ if (!API_KEY) {
 const safeApiKey: string = API_KEY;
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5174', 
+    'http://localhost:5175',
+    'http://localhost:5176',
+    'https://code.zapq.dev'  // Add your production domain
+  ],
+  credentials: true
+}));
 app.use(express.json());
 app.use(uploadRouter);
 
