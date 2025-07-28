@@ -1,16 +1,16 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import uploadRouter from './upload.js';
-import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.ts';
-import { OrchestrationEngine } from './OrchestrationEngine.ts';
-import { getStackConfig, getAllStacks } from './stackConfigs.ts';
+import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
+import { OrchestrationEngine } from './OrchestrationEngine.js';
+import { getStackConfig, getAllStacks } from './stackConfigs.js';
 
 // Inline the utils functions to avoid ES module conflicts
-function findBestFileToEdit(userPrompt: string, availableFiles: any[]) {
+function findBestFileToEdit(userPrompt, availableFiles) {
   if (availableFiles.length === 0) {
     throw new Error('No files available for editing');
   }
@@ -73,7 +73,7 @@ function findBestFileToEdit(userPrompt: string, availableFiles: any[]) {
   return bestFile;
 }
 
-function buildEditPrompt(userPrompt: string, targetFile: { path: string; content: string }) {
+function buildEditPrompt(userPrompt, targetFile) {
   return `You are a TypeScript + Tailwind CSS code assistant.
 
 Apply the following user request to the file:
@@ -102,7 +102,7 @@ if (!API_KEY) {
   console.error('❌ Missing ANTHROPIC_API_KEY in environment variables');
   process.exit(1);
 }
-const safeApiKey: string = API_KEY;
+const safeApiKey = API_KEY;
 
 const app = express();
 app.use(cors({
@@ -122,9 +122,9 @@ app.use(uploadRouter);
 
 const SRC_DIR = path.join(process.cwd(), 'src');
 
-app.get('/files', (req: Request, res: Response) => {
-  const walk = (dir: string): string[] => {
-    let results: string[] = [];
+app.get('/files', (req, res) => {
+  const walk = (dir) => {
+    let results = [];
     const list = fs.readdirSync(dir);
     list.forEach((file) => {
       const filePath = path.join(dir, file);
@@ -148,7 +148,7 @@ app.get('/files', (req: Request, res: Response) => {
 });
 
 // 🆕 NEW ARCHITECTURE: Get available technology stacks
-app.get('/stacks', (req: Request, res: Response) => {
+app.get('/stacks', (req, res) => {
   try {
     const stacks = getAllStacks();
     console.log(`📚 Returning ${stacks.length} available stacks`);
@@ -176,7 +176,7 @@ app.get('/stacks', (req: Request, res: Response) => {
 });
 
 // 🆕 NEW ARCHITECTURE: Orchestrated project generation
-app.post('/orchestrate-project', async (req: Request, res: Response) => {
+app.post('/orchestrate-project', async (req, res) => {
   const { stackId, projectName, userPrompt } = req.body;
   
   if (!stackId || !projectName || !userPrompt) {
@@ -193,7 +193,7 @@ app.post('/orchestrate-project', async (req: Request, res: Response) => {
     const engine = new OrchestrationEngine(stackId, askClaude);
     
     // Progress tracking (for future WebSocket implementation)
-    const progressCallback = (step: string, progress: number) => {
+    const progressCallback = (step, progress) => {
       console.log(`📊 Progress: ${Math.round(progress)}% - ${step}`);
       // TODO: Implement WebSocket for real-time progress updates
     };
@@ -234,7 +234,7 @@ app.post('/orchestrate-project', async (req: Request, res: Response) => {
 });
 
 // 🆕 NEW ARCHITECTURE: Generic chat endpoint for OrchestrationEngine
-app.post('/chat', async (req: Request, res: Response) => {
+app.post('/chat', async (req, res) => {
   const { prompt, maxTokens = 2048 } = req.body;
   
   if (!prompt || typeof prompt !== 'string') {
@@ -266,7 +266,7 @@ app.post('/chat', async (req: Request, res: Response) => {
 });
 
 // 🆕 NEW ARCHITECTURE: Project generation for frontend OrchestrationEngine
-app.post('/generate-project', async (req: Request, res: Response) => {
+app.post('/generate-project', async (req, res) => {
   const { prompt, maxTokens = 4096 } = req.body;
   
   if (!prompt || typeof prompt !== 'string') {
@@ -310,7 +310,7 @@ app.post('/generate-project', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/smart-edit', async (req: Request, res: Response) => {
+app.post('/smart-edit', async (req, res) => {
   const { userPrompt, availableFiles } = req.body;
   
   try {
@@ -334,8 +334,8 @@ app.post('/smart-edit', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/file', (req: Request, res: Response) => {
-  const filePath = req.query.path as string;
+app.get('/file', (req, res) => {
+  const filePath = req.query.path;
   const absPath = path.join(SRC_DIR, filePath);
   if (!absPath.startsWith(SRC_DIR)) {
     return res.status(403).send('Forbidden');
@@ -347,7 +347,7 @@ app.get('/file', (req: Request, res: Response) => {
   });
 });
 
-app.post('/save', (req: Request, res: Response) => {
+app.post('/save', (req, res) => {
   const { path: filePath, content } = req.body;
   const absPath = path.join(SRC_DIR, filePath);
   if (!absPath.startsWith(SRC_DIR)) return res.status(403).send('Forbidden');
@@ -357,7 +357,7 @@ app.post('/save', (req: Request, res: Response) => {
   res.send({ success: true });
 });
 
-async function askClaude(prompt: string, max_tokens = 2048): Promise<{ output: string; tokensUsed: number }> {
+async function askClaude(prompt, max_tokens = 2048) {
   const result = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -372,28 +372,28 @@ async function askClaude(prompt: string, max_tokens = 2048): Promise<{ output: s
     })
   });
 
-  const raw: unknown = await result.json();
+  const raw = await result.json();
 
   const output =
     typeof raw === 'object' &&
     raw !== null &&
-    Array.isArray((raw as any).content) &&
-    typeof (raw as any).content[0]?.text === 'string'
-      ? (raw as any).content[0].text
+    Array.isArray(raw.content) &&
+    typeof raw.content[0]?.text === 'string'
+      ? raw.content[0].text
       : '';
 
   const tokensUsed =
     typeof raw === 'object' &&
     raw !== null &&
-    typeof (raw as any).usage?.output_tokens === 'number'
-      ? (raw as any).usage.output_tokens
+    typeof raw.usage?.output_tokens === 'number'
+      ? raw.usage.output_tokens
       : 0;
 
   return { output, tokensUsed };
 }
 
 // Legacy endpoint for direct Claude calls
-app.post('/claude', async (req: Request, res: Response) => {
+app.post('/claude', async (req, res) => {
   const { prompt } = req.body;
   try {
     const { output, tokensUsed } = await askClaude(prompt, 1024);
@@ -406,7 +406,7 @@ app.post('/claude', async (req: Request, res: Response) => {
 });
 
 // Helper function to clean Claude's response and extract valid JSON
-function cleanClaudeResponse(raw: string): string {
+function cleanClaudeResponse(raw) {
   console.log('🧹 Cleaning Claude response...');
   
   // Remove markdown code blocks
@@ -460,7 +460,7 @@ function cleanClaudeResponse(raw: string): string {
   return jsonStr;
 }
 
-app.post('/claude-project', async (req: Request, res: Response) => {
+app.post('/claude-project', async (req, res) => {
   const { projectPath } = req.body;
   try {
     const prompt = buildClaudeProjectPrompt(projectPath);
@@ -473,7 +473,7 @@ app.post('/claude-project', async (req: Request, res: Response) => {
 });
 
 // 🆕 NEW ARCHITECTURE: Simplified file editing for OrchestrationEngine
-app.post('/edit-file', async (req: Request, res: Response) => {
+app.post('/edit-file', async (req, res) => {
   const { prompt, filePath, currentContent, maxTokens = 2048 } = req.body;
 
   if (!prompt || !filePath || !currentContent) {
