@@ -6,7 +6,6 @@ import path from 'path';
 import fetch from 'node-fetch';
 import uploadRouter from './upload.js';
 import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
-import { buildProjectGenPrompt } from './buildProjectGenPrompt.js';
 
 // Inline the utils functions to avoid ES module conflicts
 function findBestFileToEdit(userPrompt: string, availableFiles: any[]) {
@@ -111,7 +110,8 @@ app.use(cors({
     'http://localhost:5174', 
     'http://localhost:5175',
     'http://localhost:5176',
-    'https://code.zapq.dev'  // Add your production domain
+    'http://localhost:5177',
+    'https://code.zapq.dev'
   ],
   credentials: true
 }));
@@ -145,31 +145,80 @@ app.get('/files', (req: Request, res: Response) => {
   }
 });
 
+// 🆕 NEW ARCHITECTURE: Generic chat endpoint for OrchestrationEngine
 app.post('/chat', async (req: Request, res: Response) => {
-  const { userPrompt, context } = req.body;
+  const { prompt, maxTokens = 2048 } = req.body;
+  
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Prompt is required and must be a string' 
+    });
+  }
   
   try {
-    // Determine if this is a code generation request
-    const isCodeRequest = userPrompt.toLowerCase().includes('create') && 
-                         (userPrompt.toLowerCase().includes('react') || 
-                          userPrompt.toLowerCase().includes('component'));
-
-    // Enhanced prompt engineering
-    let systemPrompt = userPrompt;
-    if (isCodeRequest) {
-      systemPrompt = buildProjectGenPrompt(userPrompt);
-    }
-
-    const { output, tokensUsed } = await askClaude(systemPrompt);
+    console.log(`🤖 Claude request: ${prompt.substring(0, 100)}...`);
+    
+    const { output, tokensUsed } = await askClaude(prompt, maxTokens);
+    
+    console.log(`✅ Claude responded: ${output.length} chars, ${tokensUsed} tokens`);
     
     res.json({ 
       success: true, 
       response: output,
-      tokensUsed,
-      responseType: isCodeRequest ? 'code' : 'text'
+      tokensUsed
     });
   } catch (err) {
-      res.status(500).json({ success: false, error: 'claud couldnt process your request' });
+    console.error('❌ Claude chat error:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err instanceof Error ? err.message : 'Claude request failed' 
+    });
+  }
+});
+
+// 🆕 NEW ARCHITECTURE: Project generation for frontend OrchestrationEngine
+app.post('/generate-project', async (req: Request, res: Response) => {
+  const { prompt, maxTokens = 4096 } = req.body;
+  
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Prompt is required and must be a string' 
+    });
+  }
+  
+  try {
+    console.log(`🏗️ Project generation request: ${prompt.substring(0, 100)}...`);
+    
+    const { output: raw, tokensUsed } = await askClaude(prompt, maxTokens);
+    console.log(`📝 Raw Claude response: ${raw.length} characters`);
+    
+    // Try to parse JSON response (for file generation steps)
+    let parsedResponse = null;
+    try {
+      // Clean and parse JSON if possible
+      const cleanJson = cleanClaudeResponse(raw);
+      parsedResponse = JSON.parse(cleanJson);
+      console.log(`✅ Successfully parsed JSON response`);
+    } catch (jsonError) {
+      // If not JSON, return raw response (for analysis steps)
+      console.log(`📄 Returning raw text response`);
+    }
+    
+    res.json({
+      success: true,
+      response: parsedResponse || raw,
+      tokensUsed,
+      isJson: !!parsedResponse
+    });
+
+  } catch (err) {
+    console.error('🚨 Project generation error:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err instanceof Error ? err.message : 'Project generation failed'
+    });
   }
 });
 
@@ -255,6 +304,7 @@ async function askClaude(prompt: string, max_tokens = 2048): Promise<{ output: s
   return { output, tokensUsed };
 }
 
+// Legacy endpoint for direct Claude calls
 app.post('/claude', async (req: Request, res: Response) => {
   const { prompt } = req.body;
   try {
@@ -322,75 +372,6 @@ function cleanClaudeResponse(raw: string): string {
   return jsonStr;
 }
 
-app.post('/generate-project', async (req: Request, res: Response) => {
-  const { userPrompt } = req.body;
-  const systemPrompt = buildProjectGenPrompt(userPrompt);
-
-  try {
-    const { output: raw, tokensUsed } = await askClaude(systemPrompt, 4096);
-    console.log(`📝 Raw Claude response: ${raw.length} characters`);
-    
-    let fileArray: any[];
-    
-    try {
-      // Try robust JSON parsing first
-      const cleanJson = cleanClaudeResponse(raw);
-      fileArray = JSON.parse(cleanJson);
-      console.log(`✅ Successfully parsed JSON with ${fileArray.length} files`);
-    } catch (jsonError) {
-      console.error('❌ JSON parsing failed:', jsonError);
-      
-      // Fallback: Try to extract files using regex patterns
-      console.log('🔄 Attempting fallback parsing...');
-      
-      const fileMatches = Array.from(raw.matchAll(/"path":\s*"([^"]+)",\s*"content":\s*"([^"]*(?:\\.[^"]*)*)"/g));
-      
-      if (fileMatches.length === 0) {
-        throw new Error(`Failed to parse Claude response. JSON error: ${jsonError instanceof Error ? jsonError.message : 'Unknown parsing error'}`);
-      }
-      
-      fileArray = fileMatches.map(match => ({
-        path: match[1],
-        content: match[2].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
-      }));
-      
-      console.log(`🔧 Fallback parsing extracted ${fileArray.length} files`);
-    }
-
-    const validFiles: { path: string; content: string }[] = [];
-
-    fileArray.forEach(({ path: filePath, content }: any) => {
-      if (typeof filePath !== 'string' || typeof content !== 'string' || !content.trim()) {
-        console.warn(`⚠️ Skipping ${filePath} due to missing or empty content`);
-        return;
-      }
-
-      // ✅ FIXED: Don't write to backend filesystem - just collect file objects
-      validFiles.push({ path: filePath, content });
-      console.log(`📄 Generated: ${filePath} (${content.length} chars)`);
-    });
-
-    if (validFiles.length === 0) {
-      throw new Error('No valid files were generated by Claude');
-    }
-    
-    console.log(`🎉 Successfully generated ${validFiles.length} files (frontend-only)`);
-    
-    res.json({
-      success: true,
-      files: validFiles, // Full objects with path AND content
-      tokensUsed
-    });
-
-  } catch (err) {
-    console.error('🚨 Claude project generation error:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: `Failed to generate project: ${err instanceof Error ? err.message : 'Unknown error'}` 
-    });
-  }
-});
-
 app.post('/claude-project', async (req: Request, res: Response) => {
   const { projectPath } = req.body;
   try {
@@ -403,86 +384,53 @@ app.post('/claude-project', async (req: Request, res: Response) => {
   }
 });
 
+// 🆕 NEW ARCHITECTURE: Simplified file editing for OrchestrationEngine
 app.post('/edit-file', async (req: Request, res: Response) => {
-  const { userPrompt } = req.body;
+  const { prompt, filePath, currentContent, maxTokens = 2048 } = req.body;
+
+  if (!prompt || !filePath || !currentContent) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Prompt, filePath, and currentContent are required' 
+    });
+  }
 
   try {
-    const walk = (dir: string): string[] => {
-      let results: string[] = [];
-      const list = fs.readdirSync(dir);
-      list.forEach((file) => {
-        const filePath = path.join(dir, file);
-        const stat = fs.statSync(filePath);
-        if (stat.isDirectory()) {
-          results = results.concat(walk(filePath));
-        } else if (file.endsWith('.tsx')) {
-          results.push(path.relative(SRC_DIR, filePath));
-        }
-      });
-      return results;
-    };
-
-    const fileList = walk(SRC_DIR);
-
-    const fileGuessPrompt = `
-You are a developer assistant.
-
-A user wants to make the following change to their React app:
-
-"${userPrompt}"
-
-Here is their project file list:
-${fileList.map(f => `- ${f}`).join('\n')}
-
-Based on the prompt, which one of these files should be updated?
-
-Respond with ONLY the file path (exactly as listed above). No extra explanation.
-`;
-
-    const { output: chosenPathRaw, tokensUsed: step1Tokens } = await askClaude(fileGuessPrompt);
-    const normalized = (chosenPathRaw || '').trim().replace(/^\/+/, '');
-    const chosenPath = fileList.find(f => f.endsWith(normalized)) ?? '';
-    const absPath = path.join(SRC_DIR, chosenPath);
-    if (!absPath.startsWith(SRC_DIR) || !fs.existsSync(absPath)) {
-      return res.status(400).json({ success: false, error: 'Invalid or unknown file suggested by Claude.' });
-    }
-
-    const originalCode = fs.readFileSync(absPath, 'utf-8');
-
-    const editPrompt = `
-You are a TypeScript + Tailwind CSS code assistant.
+    const editPrompt = `You are a TypeScript + Tailwind CSS code assistant.
 
 Apply the following user request to the file:
 
-Request:
-"${userPrompt}"
+Request: "${prompt}"
 
-Current contents of ${chosenPath}:
+Current contents of ${filePath}:
 \`\`\`tsx
-${originalCode}
+${currentContent}
 \`\`\`
 
-Respond ONLY with the updated code in \`\`\`tsx\`\`\` format.
-`;
+Important: Return ONLY the updated code. Do not include explanations, markdown formatting, or file path comments. Just return the raw updated code that should replace the current file content.
 
-    const { output: updatedRaw, tokensUsed: step2Tokens } = await askClaude(editPrompt);
-    const match = updatedRaw.match(/```(?:tsx)?\s*([\s\S]+?)```/);
-    const updatedCode = match ? match[1].trim() : updatedRaw;
+Make minimal, focused changes that directly address the user's request while preserving the existing code structure and style.`;
 
-    fs.writeFileSync(absPath, updatedCode, 'utf-8');
+    const { output, tokensUsed } = await askClaude(editPrompt, maxTokens);
 
     res.json({
       success: true,
-      updatedPath: chosenPath,
-      tokensUsed: step1Tokens + step2Tokens
+      updatedContent: output,
+      filePath,
+      tokensUsed
     });
   } catch (err) {
     console.error('❌ edit-file error:', err);
-    res.status(500).json({ success: false, error: 'Failed to edit file' });
+    res.status(500).json({ 
+      success: false, 
+      error: err instanceof Error ? err.message : 'Failed to edit file' 
+    });
   }
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 Claude backend + file API running on port ${PORT}`);
+  console.log(`🚀 NEW ARCHITECTURE: Claude backend running on port ${PORT}`);
+  console.log(`🔗 Supporting OrchestrationEngine + StackConfigs`);
+  console.log(`📡 CORS enabled for localhost:5177 and code.zapq.dev`);
 }); 
