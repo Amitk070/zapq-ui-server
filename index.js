@@ -279,47 +279,58 @@ app.post('/generate-project', async (req, res) => {
   try {
     console.log(`🏗️ Project generation request: ${prompt.substring(0, 100)}...`);
     
-    // Create a structured prompt that returns JSON files
-    const structuredPrompt = `
-You are a senior full-stack developer. Create a complete, production-ready project based on this request:
+    // Parse technology stack from user prompt
+    const isViteProject = prompt.toLowerCase().includes('vite');
+    const isNextjsProject = prompt.toLowerCase().includes('nextjs') || prompt.toLowerCase().includes('next.js');
+    const isTailwindProject = prompt.toLowerCase().includes('tailwind') || isViteProject; // Vite defaults to Tailwind
+    const isTypescriptProject = prompt.toLowerCase().includes('typescript') || prompt.toLowerCase().includes('tsx');
+    
+    console.log(`🔧 Detected stack: Vite=${isViteProject}, Next=${isNextjsProject}, Tailwind=${isTailwindProject}, TS=${isTypescriptProject}`);
 
-"${prompt}"
+    // Create a structured prompt that respects user's technology choices
+    const structuredPrompt = `You are a senior full-stack developer. Create a complete, production-ready project for: "${prompt}"
 
-CRITICAL: Return ONLY a JSON array of file objects. No explanations, no markdown, no text outside the JSON.
+CRITICAL REQUIREMENTS:
+1. Return ONLY a JSON array of file objects
+2. Each object must have "path" and "content" properties  
+3. No explanations, markdown, or text outside the JSON
+4. Generate a complete, working project with the EXACT technology stack requested
 
-Format EXACTLY like this:
+TECHNOLOGY STACK TO USE:
+${isViteProject ? '- BUILD TOOL: Vite (use @vitejs/plugin-react)' : ''}
+${isNextjsProject ? '- BUILD TOOL: Next.js framework' : ''}
+${isTailwindProject ? '- STYLING: Tailwind CSS (include config files and @tailwind directives)' : '- STYLING: Regular CSS'}
+${isTypescriptProject ? '- LANGUAGE: TypeScript (.tsx files)' : '- LANGUAGE: JavaScript (.jsx files)'}
+- FRAMEWORK: React 18+
+
+REQUIRED FILES:
+- package.json (with EXACT dependencies for the requested stack)
+${isTailwindProject ? '- tailwind.config.js (Tailwind configuration)' : ''}
+${isTailwindProject ? '- postcss.config.js (PostCSS with Tailwind)' : ''}
+${isViteProject ? '- vite.config.js (Vite configuration with React plugin)' : ''}
+- index.html (HTML entry point)
+- src/main.${isTypescriptProject ? 'tsx' : 'jsx'} (React entry point)
+- src/App.${isTypescriptProject ? 'tsx' : 'jsx'} (main component)
+- src/index.css (global styles ${isTailwindProject ? 'with @tailwind directives' : ''})
+- Additional components as needed
+
+${isTailwindProject ? `
+TAILWIND CSS REQUIREMENTS:
+- Add tailwindcss, postcss, autoprefixer to devDependencies
+- Include proper tailwind.config.js that scans src/**/*.{js,jsx,ts,tsx}
+- Add @tailwind base; @tailwind components; @tailwind utilities; to index.css
+- Use Tailwind classes in all components (NO regular CSS classes)
+` : ''}
+
+Example format:
 [
-  {
-    "path": "package.json",
-    "content": "{\\"name\\": \\"project-name\\", \\"version\\": \\"1.0.0\\", \\"scripts\\": {\\"dev\\": \\"vite\\", \\"build\\": \\"vite build\\"}, \\"dependencies\\": {\\"react\\": \\"^18.0.0\\", \\"react-dom\\": \\"^18.0.0\\"}, \\"devDependencies\\": {\\"@vitejs/plugin-react\\": \\"^4.0.0\\", \\"vite\\": \\"^4.4.0\\"}}"
-  },
-  {
-    "path": "index.html",
-    "content": "<!DOCTYPE html>\\n<html lang=\\"en\\">\\n<head>\\n  <meta charset=\\"UTF-8\\">\\n  <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1.0\\">\\n  <title>Project</title>\\n</head>\\n<body>\\n  <div id=\\"root\\"></div>\\n  <script type=\\"module\\" src=\\"/src/main.jsx\\"></script>\\n</body>\\n</html>"
-  },
-  {
-    "path": "src/main.jsx",
-    "content": "import React from 'react'\\nimport ReactDOM from 'react-dom/client'\\nimport App from './App.jsx'\\nimport './index.css'\\n\\nReactDOM.createRoot(document.getElementById('root')).render(\\n  <React.StrictMode>\\n    <App />\\n  </React.StrictMode>,\\n)"
-  },
-  {
-    "path": "src/App.jsx",
-    "content": "import React from 'react'\\n\\nfunction App() {\\n  return (\\n    <div className=\\"App\\">\\n      <h1>Hello World</h1>\\n    </div>\\n  )\\n}\\n\\nexport default App"
-  },
-  {
-    "path": "src/index.css",
-    "content": "body {\\n  margin: 0;\\n  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;\\n}"
-  }
+  {"path": "package.json", "content": "COMPLETE_PACKAGE_JSON_WITH_EXACT_DEPENDENCIES"},
+  {"path": "index.html", "content": "COMPLETE_HTML"},
+  {"path": "src/main.${isTypescriptProject ? 'tsx' : 'jsx'}", "content": "COMPLETE_MAIN_FILE"}
 ]
 
-Generate a complete project with:
-- package.json with all necessary dependencies
-- HTML entry point
-- React components with proper JSX
-- CSS styling
-- Complete file structure ready to run with "npm install && npm run dev"
-
-Return ONLY the JSON array. No other text.
-    `.trim();
+Generate a production-ready project that works with "npm install && npm run dev".
+Return ONLY the JSON array.`;
     
     const { output: raw, tokensUsed } = await askClaude(structuredPrompt, maxTokens);
     console.log(`📝 Raw Claude response: ${raw.length} characters`);
