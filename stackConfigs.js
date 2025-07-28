@@ -1,6 +1,6 @@
 import { StackConfig } from '../types/StackConfig';
 
-export const STACK_CONFIGS: StackConfig[] = [
+export const STACK_CONFIGS = [
   {
     id: 'react-vite-tailwind',
     name: 'React + Vite + Tailwind',
