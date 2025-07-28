@@ -267,7 +267,7 @@ app.post('/chat', async (req, res) => {
 
 // 🆕 NEW ARCHITECTURE: Project generation that returns actual files
 app.post('/generate-project', async (req, res) => {
-  const { prompt, maxTokens = 4096 } = req.body;
+  const { prompt, maxTokens = 8192 } = req.body;
   
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ 
@@ -287,50 +287,44 @@ app.post('/generate-project', async (req, res) => {
     
     console.log(`🔧 Detected stack: Vite=${isViteProject}, Next=${isNextjsProject}, Tailwind=${isTailwindProject}, TS=${isTypescriptProject}`);
 
-    // Create a structured prompt that respects user's technology choices
-    const structuredPrompt = `You are a senior full-stack developer. Create a complete, production-ready project for: "${prompt}"
+    // Create a structured prompt that respects user's technology choices  
+    const structuredPrompt = `Create a complete ${isTailwindProject ? 'React + Vite + Tailwind' : 'React + Vite'} project for: "${prompt}"
 
-CRITICAL REQUIREMENTS:
-1. Return ONLY a JSON array of file objects
-2. Each object must have "path" and "content" properties  
-3. No explanations, markdown, or text outside the JSON
-4. Generate a complete, working project with the EXACT technology stack requested
+CRITICAL: Return ONLY a JSON array. Each file must have complete, valid content.
 
-TECHNOLOGY STACK TO USE:
-${isViteProject ? '- BUILD TOOL: Vite (use @vitejs/plugin-react)' : ''}
-${isNextjsProject ? '- BUILD TOOL: Next.js framework' : ''}
-${isTailwindProject ? '- STYLING: Tailwind CSS (include config files and @tailwind directives)' : '- STYLING: Regular CSS'}
-${isTypescriptProject ? '- LANGUAGE: TypeScript (.tsx files)' : '- LANGUAGE: JavaScript (.jsx files)'}
-- FRAMEWORK: React 18+
+Required stack:
+${isViteProject ? '- Vite build tool' : ''}
+${isTailwindProject ? '- Tailwind CSS (with proper config)' : '- Regular CSS'}
+- React 18+ components
 
-REQUIRED FILES:
-- package.json (with EXACT dependencies for the requested stack)
-${isTailwindProject ? '- tailwind.config.js (Tailwind configuration)' : ''}
-${isTailwindProject ? '- postcss.config.js (PostCSS with Tailwind)' : ''}
-${isViteProject ? '- vite.config.js (Vite configuration with React plugin)' : ''}
-- index.html (HTML entry point)
-- src/main.${isTypescriptProject ? 'tsx' : 'jsx'} (React entry point)
-- src/App.${isTypescriptProject ? 'tsx' : 'jsx'} (main component)
-- src/index.css (global styles ${isTailwindProject ? 'with @tailwind directives' : ''})
-- Additional components as needed
-
-${isTailwindProject ? `
-TAILWIND CSS REQUIREMENTS:
-- Add tailwindcss, postcss, autoprefixer to devDependencies
-- Include proper tailwind.config.js that scans src/**/*.{js,jsx,ts,tsx}
-- Add @tailwind base; @tailwind components; @tailwind utilities; to index.css
-- Use Tailwind classes in all components (NO regular CSS classes)
-` : ''}
-
-Example format:
+Generate these files with COMPLETE content:
 [
-  {"path": "package.json", "content": "COMPLETE_PACKAGE_JSON_WITH_EXACT_DEPENDENCIES"},
-  {"path": "index.html", "content": "COMPLETE_HTML"},
-  {"path": "src/main.${isTypescriptProject ? 'tsx' : 'jsx'}", "content": "COMPLETE_MAIN_FILE"}
+  {
+    "path": "package.json",
+    "content": "{\n  \"name\": \"${prompt.toLowerCase().replace(/[^a-z0-9]/g, '-')}\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"scripts\": {\n    \"dev\": \"vite\",\n    \"build\": \"vite build\",\n    \"preview\": \"vite preview\"\n  },\n  \"dependencies\": {\n    \"react\": \"^18.2.0\",\n    \"react-dom\": \"^18.2.0\"\n  },\n  \"devDependencies\": {\n    \"@vitejs/plugin-react\": \"^4.0.0\",\n    \"vite\": \"^4.4.0\"${isTailwindProject ? ',\n    \"tailwindcss\": \"^3.3.0\",\n    \"postcss\": \"^8.4.24\",\n    \"autoprefixer\": \"^10.4.14\"' : ''}\n  }\n}"
+  },
+  {
+    "path": "index.html", 
+    "content": "<!DOCTYPE html>\\n<html lang=\\"en\\">\\n<head>\\n  <meta charset=\\"UTF-8\\">\\n  <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1.0\\">\\n  <title>${prompt}</title>\\n</head>\\n<body>\\n  <div id=\\"root\\"></div>\\n  <script type=\\"module\\" src=\\"/src/main.jsx\\"></script>\\n</body>\\n</html>"
+  },
+  ${isViteProject ? '{"path": "vite.config.js", "content": "import { defineConfig } from \'vite\'\\nimport react from \'@vitejs/plugin-react\'\\n\\nexport default defineConfig({\\n  plugins: [react()]\\n})"},' : ''}
+  ${isTailwindProject ? '{"path": "tailwind.config.js", "content": "export default {\\n  content: [\\\"./index.html\\\", \\\"./src/**/*.{js,jsx}\\\"],\\n  theme: { extend: {} },\\n  plugins: []\\n}"},' : ''}
+  ${isTailwindProject ? '{"path": "postcss.config.js", "content": "export default {\\n  plugins: {\\n    tailwindcss: {},\\n    autoprefixer: {}\\n  }\\n}"},' : ''}
+  {
+    "path": "src/main.jsx",
+    "content": "import React from 'react'\\nimport ReactDOM from 'react-dom/client'\\nimport App from './App.jsx'\\nimport './index.css'\\n\\nReactDOM.createRoot(document.getElementById('root')).render(\\n  <React.StrictMode>\\n    <App />\\n  </React.StrictMode>\\n)"
+  },
+  {
+    "path": "src/index.css",
+    "content": "${isTailwindProject ? '@tailwind base;\\n@tailwind components;\\n@tailwind utilities;\\n\\nbody {\\n  margin: 0;\\n  font-family: -apple-system, BlinkMacSystemFont, sans-serif;\\n}' : 'body {\\n  margin: 0;\\n  padding: 0;\\n  font-family: -apple-system, BlinkMacSystemFont, sans-serif;\\n  background: #f5f5f5;\\n}'}"
+  },
+  {
+    "path": "src/App.jsx", 
+    "content": "COMPLETE_REACT_COMPONENT_HERE"
+  }
 ]
 
-Generate a production-ready project that works with "npm install && npm run dev".
-Return ONLY the JSON array.`;
+Generate COMPLETE, VALID content for each file. Ensure all JSON is properly formatted.`;
     
     const { output: raw, tokensUsed } = await askClaude(structuredPrompt, maxTokens);
     console.log(`📝 Raw Claude response: ${raw.length} characters`);
