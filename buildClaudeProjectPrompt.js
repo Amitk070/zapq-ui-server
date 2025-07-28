@@ -1,46 +1,34 @@
-// File: utils/buildClaudeProjectPrompt.js
-import fs from 'fs';
-import path from 'path';
+/**
+ * Builds a prompt for Claude to analyze and refactor existing projects
+ */
+export function buildClaudeProjectPrompt(projectPath) {
+  return `
+You are a senior developer analyzing an existing codebase.
 
-export function buildClaudeProjectPrompt(projectPath: string): string {
-  const summaryLines: string[] = [];
-  const fileContents: string[] = [];
+Project path: ${projectPath}
 
-  function walk(dir: string, prefix = '') {
-    const entries = fs.readdirSync(dir);
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry);
-      const relPath = path.join(prefix, entry);
-      const stat = fs.statSync(fullPath);
+Please analyze this project and provide:
 
-      if (stat.isDirectory()) {
-        walk(fullPath, relPath);
-      } else if (entry.endsWith('.tsx') || entry.endsWith('.ts') || entry.endsWith('.js')) {
-        summaryLines.push(`- ${relPath}`);
+1. **Architecture Overview:**
+   - Main technologies used
+   - Project structure
+   - Key components and their purposes
 
-        // Add only key files to content payload
-        if (/app|layout|main|router/i.test(entry)) {
-          const code = fs.readFileSync(fullPath, 'utf-8');
-          fileContents.push(`### ${relPath}\n\n\n\n${code}`);
-        }
-      }
-    }
-  }
+2. **Code Quality Assessment:**
+   - Best practices followed
+   - Areas for improvement
+   - Potential issues or bugs
 
-  walk(projectPath);
+3. **Refactoring Suggestions:**
+   - Code organization improvements
+   - Performance optimizations
+   - Modern patterns to adopt
 
-  return `You are an expert AI code reviewer.
-Here is the structure of a React+TS project:
+4. **Next Steps:**
+   - Immediate improvements to implement
+   - Long-term architectural changes
+   - Testing strategy recommendations
 
-${summaryLines.join('\n')}
-
----
-
-Some important file contents:
-
-${fileContents.join('\n\n')}
-
----
-
-Please suggest improvements, simplifications, or refactor ideas across the project.`;
-}
+Please provide a comprehensive but concise analysis focusing on actionable insights.
+  `.trim();
+} 
