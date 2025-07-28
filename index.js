@@ -15,7 +15,6 @@ function findBestFileToEdit(userPrompt, availableFiles) {
     throw new Error('No files available for editing');
   }
 
-  
   const prompt = userPrompt.toLowerCase();
   let bestFile = availableFiles[0];
   let highestScore = 0;
