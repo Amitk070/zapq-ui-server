@@ -1,4 +1,4 @@
-import { getStackConfig } from './stackConfigs.ts';
+import { getStackConfig } from './stackConfigs.js';
 
 export class OrchestrationEngine {
   constructor(stackId, askClaudeFunction) {
