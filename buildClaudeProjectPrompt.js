@@ -1,4 +1,4 @@
-// File: utils/buildClaudeProjectPrompt.ts
+// File: utils/buildClaudeProjectPrompt.js
 import fs from 'fs';
 import path from 'path';
 
