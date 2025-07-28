@@ -5,7 +5,9 @@ import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import uploadRouter from './upload.js';
-import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
+import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.ts';
+import { OrchestrationEngine } from './OrchestrationEngine.ts';
+import { getStackConfig, getAllStacks } from './stackConfigs.ts';
 
 // Inline the utils functions to avoid ES module conflicts
 function findBestFileToEdit(userPrompt: string, availableFiles: any[]) {
@@ -142,6 +144,92 @@ app.get('/files', (req: Request, res: Response) => {
   } catch (err) {
     console.error('❌ Failed to list files:', err);
     res.status(500).json({ error: 'Failed to list files' });
+  }
+});
+
+// 🆕 NEW ARCHITECTURE: Get available technology stacks
+app.get('/stacks', (req: Request, res: Response) => {
+  try {
+    const stacks = getAllStacks();
+    console.log(`📚 Returning ${stacks.length} available stacks`);
+    
+    res.json({
+      success: true,
+      stacks: stacks.map(stack => ({
+        id: stack.id,
+        name: stack.name,
+        description: stack.description,
+        framework: stack.framework,
+        buildTool: stack.buildTool,
+        styling: stack.styling,
+        language: stack.language,
+        icon: stack.icon
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Failed to get stacks:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get available stacks' 
+    });
+  }
+});
+
+// 🆕 NEW ARCHITECTURE: Orchestrated project generation
+app.post('/orchestrate-project', async (req: Request, res: Response) => {
+  const { stackId, projectName, userPrompt } = req.body;
+  
+  if (!stackId || !projectName || !userPrompt) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'stackId, projectName, and userPrompt are required' 
+    });
+  }
+  
+  try {
+    console.log(`🏗️ Starting orchestrated project generation: ${projectName} (${stackId})`);
+    
+    // Create orchestration engine instance
+    const engine = new OrchestrationEngine(stackId, askClaude);
+    
+    // Progress tracking (for future WebSocket implementation)
+    const progressCallback = (step: string, progress: number) => {
+      console.log(`📊 Progress: ${Math.round(progress)}% - ${step}`);
+      // TODO: Implement WebSocket for real-time progress updates
+    };
+    
+    // Generate project
+    const result = await engine.generateProject(projectName, userPrompt, progressCallback);
+    
+    if (result.success) {
+      console.log(`✅ Orchestrated generation successful: ${Object.keys(result.files).length} files`);
+      
+      res.json({
+        success: true,
+        result: {
+          files: result.files,
+          projectPlan: engine.currentProjectPlan,
+          errors: result.errors,
+          warnings: result.warnings,
+          buildable: result.buildable
+        },
+        tokensUsed: 0 // TODO: Track tokens across all Claude calls
+      });
+    } else {
+      console.log(`❌ Orchestrated generation failed:`, result.errors);
+      res.status(500).json({
+        success: false,
+        error: result.errors?.[0] || 'Project generation failed',
+        details: result.errors
+      });
+    }
+    
+  } catch (error) {
+    console.error('🚨 Orchestration error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown orchestration error'
+    });
   }
 });
 
@@ -433,4 +521,5 @@ app.listen(PORT, () => {
   console.log(`🚀 NEW ARCHITECTURE: Claude backend running on port ${PORT}`);
   console.log(`🔗 Supporting OrchestrationEngine + StackConfigs`);
   console.log(`📡 CORS enabled for localhost:5177 and code.zapq.dev`);
+  console.log(`🧩 Available stacks: ${getAllStacks().length}`);
 }); 
