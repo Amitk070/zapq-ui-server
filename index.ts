@@ -88,7 +88,7 @@ app.post('/chat', async (req: Request, res: Response) => {
       responseType: isCodeRequest ? 'code' : 'text'
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'claud couldnt process your request' });
   }
 });
 
@@ -112,7 +112,7 @@ app.post('/smart-edit', async (req: Request, res: Response) => {
       tokensUsed
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: ' failed to edit file' });
   }
 });
 
@@ -265,7 +265,7 @@ app.post('/generate-project', async (req: Request, res: Response) => {
       const fileMatches = [...raw.matchAll(/"path":\s*"([^"]+)",\s*"content":\s*"([^"]*(?:\\.[^"]*)*)"/g)];
       
       if (fileMatches.length === 0) {
-        throw new Error(`Failed to parse Claude response. JSON error: ${jsonError.message}`);
+        throw new Error(`Failed to parse Claude response. JSON error: ${jsonError instanceof Error ? jsonError.message : 'Unknown parsing error'}`);
       }
       
       fileArray = fileMatches.map(match => ({
