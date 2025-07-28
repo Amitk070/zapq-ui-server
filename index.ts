@@ -1,4 +1,3 @@
-// File: index.ts
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -8,7 +7,7 @@ import fetch from 'node-fetch';
 import uploadRouter from './upload.js';
 import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
 import { buildProjectGenPrompt } from './buildProjectGenPrompt.js';
-import { findBestFileToEdit, buildEditPrompt } from './utils.js';
+const { findBestFileToEdit, buildEditPrompt } = require('./utils.js');
 
 dotenv.config();
 
@@ -79,7 +78,7 @@ app.post('/chat', async (req: Request, res: Response) => {
       responseType: isCodeRequest ? 'code' : 'text'
     });
   } catch (err) {
-      res.status(500).json({ success: false, error: 'claud couldnt process your request' });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -103,7 +102,7 @@ app.post('/smart-edit', async (req: Request, res: Response) => {
       tokensUsed
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: ' failed to edit file' });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -177,15 +176,95 @@ app.post('/claude', async (req: Request, res: Response) => {
   }
 });
 
+// Helper function to clean Claude's response and extract valid JSON
+function cleanClaudeResponse(raw: string): string {
+  console.log('🧹 Cleaning Claude response...');
+  
+  // Remove markdown code blocks
+  let cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+  
+  // Remove common Claude explanations
+  cleaned = cleaned.replace(/^Here's the.*$/gm, '');
+  cleaned = cleaned.replace(/^I'll create.*$/gm, '');
+  cleaned = cleaned.replace(/^This will.*$/gm, '');
+  
+  // Find JSON array bounds more carefully
+  let jsonStart = cleaned.indexOf('[');
+  let jsonEnd = -1;
+  
+  if (jsonStart === -1) {
+    throw new Error('No JSON array found in Claude response');
+  }
+  
+  // Find matching closing bracket by counting depth
+  let depth = 0;
+  for (let i = jsonStart; i < cleaned.length; i++) {
+    if (cleaned[i] === '[') depth++;
+    if (cleaned[i] === ']') depth--;
+    if (depth === 0) {
+      jsonEnd = i + 1;
+      break;
+    }
+  }
+  
+  if (jsonEnd === -1) {
+    throw new Error('No matching closing bracket found');
+  }
+  
+  let jsonStr = cleaned.slice(jsonStart, jsonEnd);
+  
+  // Fix common JSON issues
+  jsonStr = jsonStr
+    // Fix unterminated strings by finding orphaned quotes
+    .replace(/([^\\])"([^"]*?)$/gm, '$1"$2"')
+    // Fix missing commas between objects
+    .replace(/}\s*{/g, '},{')
+    // Fix trailing commas
+    .replace(/,(\s*[}\]])/g, '$1')
+    // Fix escaped quotes in content
+    .replace(/\\"/g, '\\"')
+    // Remove control characters that break JSON
+    .replace(/[\x00-\x1F\x7F]/g, '');
+  
+  console.log(`📏 Extracted JSON: ${jsonStr.length} characters`);
+  
+  return jsonStr;
+}
+
 app.post('/generate-project', async (req: Request, res: Response) => {
   const { userPrompt } = req.body;
   const systemPrompt = buildProjectGenPrompt(userPrompt);
 
   try {
     const { output: raw, tokensUsed } = await askClaude(systemPrompt, 4096);
-    const jsonStart = raw.indexOf('[');
-    const jsonEnd = raw.lastIndexOf(']') + 1;
-    const fileArray = JSON.parse(raw.slice(jsonStart, jsonEnd));
+    console.log(`📝 Raw Claude response: ${raw.length} characters`);
+    
+    let fileArray: any[];
+    
+    try {
+      // Try robust JSON parsing first
+      const cleanJson = cleanClaudeResponse(raw);
+      fileArray = JSON.parse(cleanJson);
+      console.log(`✅ Successfully parsed JSON with ${fileArray.length} files`);
+    } catch (jsonError) {
+      console.error('❌ JSON parsing failed:', jsonError);
+      
+      // Fallback: Try to extract files using regex patterns
+      console.log('🔄 Attempting fallback parsing...');
+      
+      const fileMatches = [...raw.matchAll(/"path":\s*"([^"]+)",\s*"content":\s*"([^"]*(?:\\.[^"]*)*)"/g)];
+      
+      if (fileMatches.length === 0) {
+        throw new Error(`Failed to parse Claude response. JSON error: ${jsonError.message}`);
+      }
+      
+      fileArray = fileMatches.map(match => ({
+        path: match[1],
+        content: match[2].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+      }));
+      
+      console.log(`🔧 Fallback parsing extracted ${fileArray.length} files`);
+    }
 
     const validFiles: { path: string; content: string }[] = [];
 
@@ -196,15 +275,23 @@ app.post('/generate-project', async (req: Request, res: Response) => {
       }
 
       const absPath = path.join(process.cwd(), filePath);
-      fs.mkdirSync(path.dirname(absPath), { recursive: true });
-      fs.writeFileSync(absPath, content, 'utf-8');
-
-      validFiles.push({ path: filePath, content });
+      
+      try {
+        fs.mkdirSync(path.dirname(absPath), { recursive: true });
+        fs.writeFileSync(absPath, content, 'utf-8');
+        validFiles.push({ path: filePath, content });
+        console.log(`📄 Created: ${filePath} (${content.length} chars)`);
+      } catch (fileError) {
+        console.error(`❌ Failed to write ${filePath}:`, fileError);
+      }
     });
 
     if (validFiles.length === 0) {
       throw new Error('No valid files were generated by Claude');
-        }
+    }
+    
+    console.log(`🎉 Successfully generated ${validFiles.length} files`);
+    
     res.json({
       success: true,
       files: validFiles, // Full objects with path AND content
@@ -213,7 +300,10 @@ app.post('/generate-project', async (req: Request, res: Response) => {
 
   } catch (err) {
     console.error('🚨 Claude project generation error:', err);
-    res.status(500).json({ success: false, error: 'Failed to generate project' });
+    res.status(500).json({ 
+      success: false, 
+      error: `Failed to generate project: ${err instanceof Error ? err.message : 'Unknown error'}` 
+    });
   }
 });
 
@@ -311,4 +401,4 @@ Respond ONLY with the updated code in \`\`\`tsx\`\`\` format.
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Claude backend + file API running on port ${PORT}`);
-});
+}); 
