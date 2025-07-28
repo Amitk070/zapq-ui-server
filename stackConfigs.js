@@ -1,4 +1,5 @@
-import { StackConfig } from '../types/StackConfig';
+// Note: In Node.js environment, we define types inline instead of importing
+// export interface StackConfig is defined inline below
 
 export const STACK_CONFIGS = [
   {
@@ -309,7 +310,6 @@ Return ONLY the README content in markdown format.`
     ]
   },
 
-  // Vue 3 configuration
   {
     id: 'vue3-vite-tailwind',
     name: 'Vue 3 + Vite + Tailwind',
@@ -499,205 +499,13 @@ Return ONLY the README content.`
         outputPath: 'src/components/'
       }
     ]
-  },
-
-  // SvelteKit configuration
-  {
-    id: 'sveltekit-tailwind',
-    name: 'SvelteKit + Tailwind',
-    description: 'Full-stack SvelteKit with Tailwind CSS',
-    framework: 'svelte',
-    buildTool: 'vite',
-    styling: 'tailwind',
-    language: 'typescript',
-    icon: '🧡',
-    
-    templates: {
-      packageJson: {
-        name: '{projectName}',
-        version: '1.0.0',
-        description: '{description}',
-        type: 'module',
-        scripts: {
-          dev: 'vite dev',
-          build: 'vite build',
-          preview: 'vite preview',
-          check: 'svelte-kit sync && svelte-check --tsconfig ./tsconfig.json'
-        },
-        dependencies: {
-          '@sveltejs/kit': '^2.0.0'
-        },
-        devDependencies: {
-          '@sveltejs/adapter-auto': '^3.0.0',
-          '@sveltejs/vite-plugin-svelte': '^3.0.0',
-          'svelte': '^4.2.0',
-          'svelte-check': '^4.0.0',
-          typescript: '^5.5.3',
-          vite: '^5.4.2',
-          tailwindcss: '^3.4.1',
-          autoprefixer: '^10.4.18',
-          postcss: '^8.4.35'
-        }
-      },
-      
-      configFiles: {
-        'svelte.config.js': `import adapter from '@sveltejs/adapter-auto';
-import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-
-const config = {
-  preprocess: vitePreprocess(),
-  kit: {
-    adapter: adapter()
-  }
-};
-
-export default config;`,
-        
-        'vite.config.ts': `import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
-
-export default defineConfig({
-  plugins: [sveltekit()]
-});`
-      },
-      
-      baseFiles: {
-        'src/app.html': `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    %sveltekit.head%
-  </head>
-  <body data-sveltekit-preload-data="hover">
-    <div style="display: contents">%sveltekit.body%</div>
-  </body>
-</html>`,
-        
-        'src/app.css': `@tailwind base;
-@tailwind components;
-@tailwind utilities;`
-      }
-    },
-    
-    commands: {
-      install: 'npm install',
-      dev: 'npm run dev',
-      build: 'npm run build',
-      lint: 'npm run lint'
-    },
-    
-    prompts: {
-      analyzer: `Analyze this SvelteKit project request: "{userPrompt}"
-
-Determine pages, components, and features for a SvelteKit + TypeScript + Tailwind project.
-Return JSON structure.`,
-
-      scaffold: `Generate the main layout for SvelteKit:
-
-Project: {projectName}
-Description: {description}
-
-Requirements:
-- SvelteKit layout structure
-- TypeScript
-- Tailwind CSS
-- Professional design
-
-Return ONLY the +layout.svelte code.`,
-
-      page: `Generate a SvelteKit page:
-
-Page: {name}
-Description: {description}
-
-Requirements:
-- SvelteKit page component
-- TypeScript
-- Tailwind CSS
-- Realistic content
-
-Return ONLY the +page.svelte code.`,
-
-      component: `Generate a Svelte component:
-
-Component: {name}
-Description: {description}
-
-Requirements:
-- Svelte component
-- TypeScript
-- Tailwind CSS
-- Reusable design
-
-Return ONLY the .svelte component code.`,
-
-      layout: `Generate a SvelteKit layout:
-
-Layout: {name}
-Description: {description}
-
-Requirements:
-- SvelteKit layout
-- TypeScript
-- Tailwind CSS
-- Slot for content
-
-Return ONLY the +layout.svelte code.`,
-
-      styles: `Generate additional CSS for SvelteKit:
-
-Feature: {feature}
-Description: {description}
-
-Return ONLY the CSS code.`,
-
-      readme: `Generate README.md for SvelteKit + Tailwind project:
-
-Project: {projectName}
-Description: {description}
-
-Return ONLY the README content.`
-    },
-    
-    steps: [
-      {
-        id: 'analyze',
-        name: 'Analyze Project',
-        description: 'Parse requirements',
-        promptType: 'analyzer',
-        outputPath: 'analysis.json'
-      },
-      {
-        id: 'scaffold',
-        name: 'Create Layout',
-        description: 'Generate main layout',
-        promptType: 'scaffold',
-        outputPath: 'src/routes/+layout.svelte'
-      },
-      {
-        id: 'pages',
-        name: 'Generate Pages',
-        description: 'Create pages',
-        promptType: 'page',
-        outputPath: 'src/routes/'
-      },
-      {
-        id: 'components',
-        name: 'Generate Components',
-        description: 'Create components',
-        promptType: 'component',
-        outputPath: 'src/lib/components/'
-      }
-    ]
   }
 ];
 
-export function getStackConfig(stackId: string): StackConfig | undefined {
+export function getStackConfig(stackId) {
   return STACK_CONFIGS.find(config => config.id === stackId);
 }
 
-export function getAllStacks(): StackConfig[] {
+export function getAllStacks() {
   return STACK_CONFIGS;
 } 
