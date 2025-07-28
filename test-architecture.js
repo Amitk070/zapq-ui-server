@@ -7,7 +7,10 @@
  * the new layered architecture is working correctly.
  */
 
-const API_BASE = 'http://localhost:3001'; // Your backend URL
+// Use the same API_BASE as the frontend
+const API_BASE = process.env.API_BASE || 'https://zapq-ui-server.onrender.com';
+
+console.log(`🔗 Testing backend at: ${API_BASE}`);
 
 async function testBackend() {
   console.log('🚀 Testing New Architecture Backend...\n');
@@ -95,6 +98,7 @@ async function testBackend() {
 
   console.log('\n' + '═'.repeat(50));
   console.log('🎉 Architecture test complete!');
+  console.log(`🔗 Tested backend: ${API_BASE}`);
   console.log('💡 If all endpoints show ✅, your new architecture is ready!');
 }
 
