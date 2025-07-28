@@ -1,11 +1,6 @@
-// utils.ts - Smart edit helper functions
+// utils.js - Smart edit helper functions (JavaScript version)
 
-export interface FileEntry {
-  path: string;
-  content: string;
-}
-
-export function findBestFileToEdit(userPrompt: string, availableFiles: FileEntry[]): FileEntry {
+export function findBestFileToEdit(userPrompt, availableFiles) {
   if (availableFiles.length === 0) {
     throw new Error('No files available for editing');
   }
@@ -62,7 +57,7 @@ export function findBestFileToEdit(userPrompt: string, availableFiles: FileEntry
   return bestFile;
 }
 
-export function buildEditPrompt(userPrompt: string, targetFile: FileEntry): string {
+export function buildEditPrompt(userPrompt, targetFile) {
   return `You are a TypeScript + Tailwind CSS code assistant.
 
 Apply the following user request to the file:
@@ -78,4 +73,4 @@ ${targetFile.content}
 Important: Return ONLY the updated code. Do not include explanations, markdown formatting, or file path comments. Just return the raw updated code that should replace the current file content.
 
 Make minimal, focused changes that directly address the user's request while preserving the existing code structure and style.`;
-}
+} 
