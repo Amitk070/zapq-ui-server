@@ -1,52 +1,71 @@
-// File: upload.ts
-import express, { Request, Response } from 'express';
+import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import AdmZip from 'adm-zip';
 
 const router = express.Router();
-const upload = multer({ dest: 'uploads/' });
 
-router.post('/upload-project', upload.single('file'), (req: Request, res: Response) => {
-  const zipPath = req.file?.path;
-  const projectName = req.body.name || `project-${Date.now()}`;
-  const extractPath = path.join('projects', projectName);
-
-  if (!zipPath) {
-    return res.status(400).json({ success: false, error: 'No file uploaded' });
-  }
-
-  try {
-    const zip = new AdmZip(zipPath);
-    fs.mkdirSync(extractPath, { recursive: true });
-    zip.extractAllTo(extractPath, true);
-    fs.unlinkSync(zipPath);
-
-    const files = listFilesRecursively(extractPath);
-    res.json({ success: true, files, path: extractPath });
-  } catch (err) {
-    console.error('❌ Zip extraction failed:', err);
-    res.status(500).json({ success: false, error: 'Extraction failed' });
+// Configure multer for file uploads
+const upload = multer({
+  dest: 'uploads/',
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   }
 });
 
-function listFilesRecursively(dir: string, prefix = ''): string[] {
-  let results: string[] = [];
-  const entries = fs.readdirSync(dir);
-
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry);
-    const relPath = path.join(prefix, entry);
-    const stat = fs.lstatSync(fullPath);
-    if (stat.isDirectory()) {
-      results = results.concat(listFilesRecursively(fullPath, relPath));
-    } else {
-      results.push(relPath);
+// Simple file upload endpoint - FIXED: No TypeScript types
+router.post('/upload', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
     }
-  }
 
-  return results;
-}
+    res.json({
+      success: true,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ success: false, error: 'Upload failed' });
+  }
+});
+
+// Project upload endpoint - FIXED: No TypeScript types  
+router.post('/upload-project', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No project file uploaded' 
+      });
+    }
+
+    // Basic project file validation
+    const allowedExtensions = ['.zip', '.tar', '.gz'];
+    const fileExtension = req.file.originalname.toLowerCase().slice(-4);
+    
+    if (!allowedExtensions.some(ext => req.file.originalname.toLowerCase().endsWith(ext))) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Only .zip, .tar, .gz files are allowed' 
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Project uploaded successfully',
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      path: req.file.path
+    });
+  } catch (error) {
+    console.error('Project upload error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Project upload failed' 
+    });
+  }
+});
 
 export default router;
