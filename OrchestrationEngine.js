@@ -531,4 +531,55 @@ export class OrchestrationEngine {
   get currentErrors() {
     return [...this.errors];
   }
+  // OrchestrationEngine.js (patched)
+
+async executeStep(step) {
+  try {
+    const promptTemplate = this.stackConfig.prompts[step.promptType];
+    if (!promptTemplate) throw new Error(`Missing prompt template for step: ${step.id}`);
+
+    const filledPrompt = this.fillPrompt(promptTemplate);
+    const maxRetries = 3;
+    let content = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const rawResponse = await this.askClaude(`"""
+${filledPrompt}
+"""`);
+      content = this.extractCode(rawResponse);
+
+      if (content && content.length > 100) break; // Minimum content length OK
+      if (attempt === maxRetries) throw new Error(`Step ${step.id} failed after ${maxRetries} attempts`);
+    }
+
+    await this.writeOutput(step.outputPath, content);
+  } catch (err) {
+    this.errors.push({ stepId: step.id, message: err.message });
+    console.error(`❌ Error in step ${step.id}:`, err.message);
+  }
+}
+
+extractCode(raw) {
+  const match = raw.match(/```[a-z]*\n([\s\S]*?)```/);
+  return match ? match[1].trim() : null;
+}
+
+// example askClaude (inject this into the constructor)
+async askClaude(prompt) {
+  // your real Claude API call goes here
+  const response = await claude.chat({
+    messages: [
+      { role: 'user', content: prompt }
+    ]
+  });
+
+  return response.content || '';
+}
+
+fillPrompt(template) {
+  // Replace all {placeholder} with values from this.projectPlan or config
+  // Simplified example:
+  return template.replace('{projectName}', this.projectPlan?.name || 'App');
+}
+
 } 
