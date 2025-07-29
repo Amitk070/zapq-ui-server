@@ -116,7 +116,11 @@ CRITICAL:
 - Make sure pages and components match what the user actually requested`;
 
     try {
-      const response = await this.askClaude(prompt, 1024);
+      const claudeResult = await this.askClaude(prompt, 1024);
+      
+      // Handle both direct string and object response formats
+      const response = typeof claudeResult === 'string' ? claudeResult : claudeResult.output;
+      
       const match = response.match(/\{[\s\S]*\}/);
       
       if (!match) {
@@ -810,7 +814,8 @@ Requirements:
 Return ONLY the JSX component code, no explanations.`;
 
     try {
-      const response = await this.askClaude(prompt, 1024);
+      const claudeResult = await this.askClaude(prompt, 1024);
+      const response = typeof claudeResult === 'string' ? claudeResult : claudeResult.output;
       const cleanCode = this.cleanCodeResponse(response);
       this.generatedFiles[`src/pages/${page.filename}`] = cleanCode;
       console.log(`✅ Generated page: ${page.filename}`);
@@ -835,7 +840,8 @@ Requirements:
 Return ONLY the JSX component code, no explanations.`;
 
     try {
-      const response = await this.askClaude(prompt, 1024);
+      const claudeResult = await this.askClaude(prompt, 1024);
+      const response = typeof claudeResult === 'string' ? claudeResult : claudeResult.output;
       const cleanCode = this.cleanCodeResponse(response);
       this.generatedFiles[`src/components/${component.filename}`] = cleanCode;
       console.log(`✅ Generated component: ${component.filename}`);
