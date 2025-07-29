@@ -121,13 +121,48 @@ CRITICAL:
       // Handle both direct string and object response formats
       const response = typeof claudeResult === 'string' ? claudeResult : claudeResult.output;
       
-      const match = response.match(/\{[\s\S]*\}/);
+      console.log('🔍 Claude raw response:', response.substring(0, 500) + '...');
       
-      if (!match) {
+      // Try multiple JSON extraction methods
+      let jsonStr = null;
+      
+      // Method 1: Look for JSON blocks
+      let match = response.match(/```json\s*([\s\S]*?)\s*```/);
+      if (match) {
+        jsonStr = match[1];
+        console.log('📄 Found JSON in code block');
+      }
+      
+      // Method 2: Look for plain JSON object
+      if (!jsonStr) {
+        match = response.match(/\{[\s\S]*\}/);
+        if (match) {
+          jsonStr = match[0];
+          console.log('📄 Found JSON object');
+        }
+      }
+      
+      // Method 3: Try to clean and extract JSON
+      if (!jsonStr) {
+        // Remove common Claude explanations
+        const cleaned = response
+          .replace(/^.*?(?=\{)/s, '') // Remove everything before first {
+          .replace(/\}.*$/s, '}')     // Remove everything after last }
+          .trim();
+        
+        if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+          jsonStr = cleaned;
+          console.log('📄 Found JSON after cleaning');
+        }
+      }
+      
+      if (!jsonStr) {
+        console.log('❌ No JSON found in response. Full response:', response);
         throw new Error("Claude did not return valid JSON plan");
       }
 
-      const plan = JSON.parse(match[0]);
+      console.log('🧹 Extracted JSON:', jsonStr.substring(0, 200) + '...');
+      const plan = JSON.parse(jsonStr);
       
       this.projectPlan = {
         stackId: this.stackConfig.id,
@@ -142,7 +177,80 @@ CRITICAL:
       
     } catch (error) {
       console.error('❌ Failed to generate project plan:', error);
-      throw new Error(`Project plan generation failed: ${error.message}`);
+      console.log('🔄 Generating fallback plan...');
+      
+      // Generate a fallback plan based on the user prompt
+      this.projectPlan = this.generateFallbackPlan(projectName, userPrompt);
+      console.log('✅ Fallback plan generated:', this.projectPlan);
+    }
+  }
+
+  // Generate a sensible fallback plan when Claude fails
+  generateFallbackPlan(projectName, userPrompt) {
+    const prompt = userPrompt.toLowerCase();
+    
+    // Determine project type from keywords
+    let pages = [];
+    let components = [];
+    let features = [];
+    
+    if (prompt.includes('portfolio')) {
+      pages = [
+        { name: 'Home', filename: 'Home.jsx', path: '/', description: 'Portfolio landing page' },
+        { name: 'About', filename: 'About.jsx', path: '/about', description: 'About me section' },
+        { name: 'Projects', filename: 'Projects.jsx', path: '/projects', description: 'Project showcase' },
+        { name: 'Contact', filename: 'Contact.jsx', path: '/contact', description: 'Contact information' }
+      ];
+      components = [
+        { name: 'Navbar', filename: 'Navbar.jsx', description: 'Navigation bar' },
+        { name: 'Hero', filename: 'Hero.jsx', description: 'Hero section' },
+        { name: 'ProjectCard', filename: 'ProjectCard.jsx', description: 'Project display card' },
+        { name: 'Footer', filename: 'Footer.jsx', description: 'Site footer' }
+      ];
+      features = ['Portfolio showcase', 'Responsive design', 'Contact form', 'Modern UI'];
+    } else if (prompt.includes('dashboard')) {
+      pages = [
+        { name: 'Dashboard', filename: 'Dashboard.jsx', path: '/', description: 'Main dashboard' },
+        { name: 'Analytics', filename: 'Analytics.jsx', path: '/analytics', description: 'Analytics page' },
+        { name: 'Settings', filename: 'Settings.jsx', path: '/settings', description: 'Settings page' }
+      ];
+      components = [
+        { name: 'Sidebar', filename: 'Sidebar.jsx', description: 'Navigation sidebar' },
+        { name: 'Chart', filename: 'Chart.jsx', description: 'Data visualization' },
+        { name: 'DataTable', filename: 'DataTable.jsx', description: 'Data table' }
+      ];
+      features = ['Data visualization', 'Real-time updates', 'User management'];
+    } else if (prompt.includes('landing') || prompt.includes('sports') || prompt.includes('travel') || prompt.includes('business')) {
+      // Generic landing page
+      pages = [
+        { name: 'Home', filename: 'Home.jsx', path: '/', description: 'Main landing page' }
+      ];
+      components = [
+        { name: 'Navbar', filename: 'Navbar.jsx', description: 'Navigation header' },
+        { name: 'Hero', filename: 'Hero.jsx', description: 'Hero section with CTA' },
+        { name: 'Features', filename: 'Features.jsx', description: 'Features showcase' },
+        { name: 'Footer', filename: 'Footer.jsx', description: 'Site footer' }
+      ];
+      features = ['Hero section', 'Call-to-action', 'Responsive design', 'Modern styling'];
+    } else {
+      // Default fallback
+      pages = [
+        { name: 'Home', filename: 'Home.jsx', path: '/', description: 'Main page' }
+      ];
+      components = [
+        { name: 'Navbar', filename: 'Navbar.jsx', description: 'Navigation' },
+        { name: 'Footer', filename: 'Footer.jsx', description: 'Footer' }
+      ];
+      features = ['Responsive design', 'Modern UI', 'Tailwind CSS'];
+    }
+    
+    return {
+      stackId: this.stackConfig.id,
+      projectName,
+      description: userPrompt,
+      pages,
+      components,
+      features
     }
   }
 
