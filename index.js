@@ -265,9 +265,9 @@ app.post('/chat', async (req, res) => {
   }
 });
 
-// 🆕 NEW ARCHITECTURE: Project generation that returns actual files
+// 🆕 NEW ARCHITECTURE: Step-by-step project generation using OrchestrationEngine
 app.post('/generate-project', async (req, res) => {
-  const { prompt, maxTokens = 8192 } = req.body;
+  const { prompt } = req.body;
   
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ 
@@ -277,104 +277,47 @@ app.post('/generate-project', async (req, res) => {
   }
   
   try {
-    console.log(`🏗️ Project generation request: ${prompt.substring(0, 100)}...`);
+    console.log(`🚀 Starting step-by-step generation: ${prompt.substring(0, 100)}...`);
     
-    // Parse technology stack from user prompt
-    const isViteProject = prompt.toLowerCase().includes('vite');
-    const isNextjsProject = prompt.toLowerCase().includes('nextjs') || prompt.toLowerCase().includes('next.js');
-    const isTailwindProject = prompt.toLowerCase().includes('tailwind') || isViteProject; // Vite defaults to Tailwind
-    const isTypescriptProject = prompt.toLowerCase().includes('typescript') || prompt.toLowerCase().includes('tsx');
+    // Parse project name from prompt for better organization
+    const projectName = prompt.split(' ').slice(0, 3).join(' ');
     
-    console.log(`🔧 Detected stack: Vite=${isViteProject}, Next=${isNextjsProject}, Tailwind=${isTailwindProject}, TS=${isTypescriptProject}`);
-
-    // Create a structured prompt that respects user's technology choices  
-    const structuredPrompt = `Create a complete ${isTailwindProject ? 'React + Vite + Tailwind' : 'React + Vite'} project for: "${prompt}"
-
-CRITICAL: Return ONLY a JSON array. Each file must have complete, valid content.
-
-Required stack:
-${isViteProject ? '- Vite build tool' : ''}
-${isTailwindProject ? '- Tailwind CSS (with proper config)' : '- Regular CSS'}
-- React 18+ components
-
-Generate these files with COMPLETE content:
-[
-  {
-    "path": "package.json",
-    "content": "{\n  \"name\": \"${prompt.toLowerCase().replace(/[^a-z0-9]/g, '-')}\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"scripts\": {\n    \"dev\": \"vite\",\n    \"build\": \"vite build\",\n    \"preview\": \"vite preview\"\n  },\n  \"dependencies\": {\n    \"react\": \"^18.2.0\",\n    \"react-dom\": \"^18.2.0\"\n  },\n  \"devDependencies\": {\n    \"@vitejs/plugin-react\": \"^4.0.0\",\n    \"vite\": \"^4.4.0\"${isTailwindProject ? ',\n    \"tailwindcss\": \"^3.3.0\",\n    \"postcss\": \"^8.4.24\",\n    \"autoprefixer\": \"^10.4.14\"' : ''}\n  }\n}"
-  },
-  {
-    "path": "index.html", 
-    "content": "<!DOCTYPE html>\\n<html lang=\\"en\\">\\n<head>\\n  <meta charset=\\"UTF-8\\">\\n  <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1.0\\">\\n  <title>${prompt}</title>\\n</head>\\n<body>\\n  <div id=\\"root\\"></div>\\n  <script type=\\"module\\" src=\\"/src/main.jsx\\"></script>\\n</body>\\n</html>"
-  },
-  ${isViteProject ? '{"path": "vite.config.js", "content": "import { defineConfig } from \'vite\'\\nimport react from \'@vitejs/plugin-react\'\\n\\nexport default defineConfig({\\n  plugins: [react()]\\n})"},' : ''}
-  ${isTailwindProject ? '{"path": "tailwind.config.js", "content": "export default {\\n  content: [\\\"./index.html\\\", \\\"./src/**/*.{js,jsx}\\\"],\\n  theme: { extend: {} },\\n  plugins: []\\n}"},' : ''}
-  ${isTailwindProject ? '{"path": "postcss.config.js", "content": "export default {\\n  plugins: {\\n    tailwindcss: {},\\n    autoprefixer: {}\\n  }\\n}"},' : ''}
-  {
-    "path": "src/main.jsx",
-    "content": "import React from 'react'\\nimport ReactDOM from 'react-dom/client'\\nimport App from './App.jsx'\\nimport './index.css'\\n\\nReactDOM.createRoot(document.getElementById('root')).render(\\n  <React.StrictMode>\\n    <App />\\n  </React.StrictMode>\\n)"
-  },
-  {
-    "path": "src/index.css",
-    "content": "${isTailwindProject ? '@tailwind base;\\n@tailwind components;\\n@tailwind utilities;\\n\\nbody {\\n  margin: 0;\\n  font-family: -apple-system, BlinkMacSystemFont, sans-serif;\\n}' : 'body {\\n  margin: 0;\\n  padding: 0;\\n  font-family: -apple-system, BlinkMacSystemFont, sans-serif;\\n  background: #f5f5f5;\\n}'}"
-  },
-  {
-    "path": "src/App.jsx", 
-    "content": "COMPLETE_REACT_COMPONENT_HERE"
-  }
-]
-
-Generate COMPLETE, VALID content for each file. Ensure all JSON is properly formatted.`;
+    // Use React + Vite + Tailwind stack for all projects
+    const engine = new OrchestrationEngine('react-vite-tailwind', askClaude);
     
-    const { output: raw, tokensUsed } = await askClaude(structuredPrompt, maxTokens);
-    console.log(`📝 Raw Claude response: ${raw.length} characters`);
+    // Progress callback for logging
+    const progressCallback = (step, progress) => {
+      console.log(`📊 Progress: ${Math.round(progress)}% - ${step}`);
+    };
     
-    // Parse the file array from Claude's response
-    let fileArray;
-    try {
-      const cleanJson = cleanClaudeResponse(raw);
-      fileArray = JSON.parse(cleanJson);
-      console.log(`✅ Successfully parsed ${fileArray.length} files`);
-    } catch (jsonError) {
-      console.error('❌ JSON parsing failed:', jsonError);
-      // Fallback: Try to extract files using regex patterns
-      console.log('🔄 Attempting fallback parsing...');
-      const fileMatches = Array.from(raw.matchAll(/"path":\s*"([^"]+)",\s*"content":\s*"([^"]*(?:\\.[^"]*)*)"/g));
-      if (fileMatches.length === 0) {
-        throw new Error(`Failed to parse Claude response. JSON error: ${jsonError instanceof Error ? jsonError.message : 'Unknown parsing error'}`);
-      }
-      fileArray = fileMatches.map(match => ({
-        path: match[1],
-        content: match[2].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
-      }));
-      console.log(`🔧 Fallback parsing extracted ${fileArray.length} files`);
+    // Generate project using step-by-step approach
+    const result = await engine.generateProject(projectName, prompt, progressCallback);
+    
+    if (result.success) {
+      console.log(`✅ Step-by-step generation successful: ${Object.keys(result.files).length} files`);
+      
+      res.json({
+        success: true,
+        files: Object.entries(result.files).map(([path, content]) => ({
+          path,
+          content
+        })),
+        tokensUsed: 0 // TODO: Track tokens across all steps
+      });
+    } else {
+      console.log(`❌ Step-by-step generation failed:`, result.errors);
+      res.status(500).json({
+        success: false,
+        error: result.errors?.[0] || 'Project generation failed',
+        details: result.errors
+      });
     }
-
-    // Validate that we got actual files
-    const validFiles = fileArray.filter(file => 
-      file && 
-      typeof file.path === 'string' && 
-      typeof file.content === 'string' && 
-      file.content.trim().length > 0
-    );
-
-    if (validFiles.length === 0) {
-      throw new Error('No valid files were generated by Claude');
-    }
-
-    console.log(`🎉 Successfully generated ${validFiles.length} files`);
     
-    res.json({
-      success: true,
-      files: validFiles,
-      tokensUsed
-    });
-
-  } catch (err) {
-    console.error('🚨 Project generation error:', err);
+  } catch (error) {
+    console.error('🚨 Step-by-step generation error:', error);
     res.status(500).json({ 
       success: false, 
-      error: err instanceof Error ? err.message : 'Project generation failed'
+      error: error instanceof Error ? error.message : 'Unknown generation error'
     });
   }
 });
