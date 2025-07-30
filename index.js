@@ -310,13 +310,18 @@ app.post('/generate-project', async (req, res) => {
     if (result.success) {
       console.log(`✅ Step-by-step generation successful: ${Object.keys(result.files).length} files`);
       
+      // Get actual tokens used from the orchestration engine
+      const actualTokens = result.tokensUsed || engine.totalTokensUsed || 0;
+      const tokensUsed = actualTokens > 0 ? actualTokens : Math.max(1000, Object.keys(result.files).length * 200);
+      console.log(`🪙 Project generation used ${tokensUsed} tokens (actual: ${actualTokens}, engine: ${engine.totalTokensUsed})`);
+      
       res.json({
         success: true,
         files: Object.entries(result.files).map(([path, content]) => ({
           path,
           content
         })),
-        tokensUsed: 0 // TODO: Track tokens across all steps
+        tokensUsed: tokensUsed
       });
     } else {
       console.log(`❌ Step-by-step generation failed:`, result.errors);
