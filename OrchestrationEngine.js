@@ -351,7 +351,14 @@ CRITICAL:
         .replace('{projectContext}', this.projectPlan.description);
 
       try {
-        const claudeResult = await this.askClaude(prompt, 2048);
+        // Add file extension enforcement
+        const enhancedPrompt = `CRITICAL: This is a TypeScript React project. Use .tsx extension for ALL React components.
+
+${prompt}
+
+IMPORTANT: Generate TypeScript React component code (.tsx) only. Be consistent with TypeScript throughout.`;
+
+        const claudeResult = await this.askClaude(enhancedPrompt, 2048);
         const tokensUsed = claudeResult.tokensUsed || 0;
         this.totalTokensUsed += tokensUsed;
         console.log(`📊 Page generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
@@ -791,84 +798,79 @@ Return ONLY the complete TypeScript/JavaScript code for each file, no explanatio
 
   // 📄 STEP 3: Generate Pages (from dynamic plan)
   async generatePagesFromPlan() {
-    console.log('📄 Generating pages from plan...');
-    
-    if (!this.projectPlan.pages || this.projectPlan.pages.length === 0) {
-      console.log('No pages defined in plan, generating default App component');
-      await this.generateDefaultApp();
+    if (!this.projectPlan?.pages?.length) {
+      console.log('⚠️ No pages to generate from plan');
       return;
     }
+
+    console.log('📄 Generating pages from plan...');
     
-    try {
-      // Generate App.tsx with proper routing
-      const pageImports = this.projectPlan.pages.map(page => 
-        `import ${page.name} from './pages/${page.filename.replace('.jsx', '.tsx')}'`
-      ).join('\n');
-      
-      const componentImports = this.projectPlan.components.map(comp => 
-        `import ${comp.name} from './components/${comp.filename.replace('.jsx', '.tsx')}'`
-      ).join('\n');
+    for (const page of this.projectPlan.pages) {
+      try {
+        // Get the page generation prompt from stack config
+        let prompt = this.stackConfig.prompts.page
+          .replace('{name}', page.name)
+          .replace('{description}', page.description)
+          .replace('{path}', page.path)
+          .replace('{components}', page.components?.join(', ') || '')
+          .replace('{projectContext}', this.projectPlan.description);
 
-      const appContent = `import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-${pageImports}
-${componentImports}
+        // Add system-level file extension enforcement
+        const systemInstruction = `
+CRITICAL FILE EXTENSION REQUIREMENT:
+- This is a TypeScript React project
+- ALL React components MUST use .tsx extension
+- ALL files should be TypeScript (not JavaScript)
+- Be consistent with file extensions throughout
+- Never mix .js, .jsx, .ts, and .tsx in the same project
 
-function App() {
-  return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Routes>
-          ${this.projectPlan.pages.map(page => 
-            `<Route path="${page.path}" element={<${page.name} />} />`
-          ).join('\n          ')}
-        </Routes>
-      </div>
-    </Router>
-  );
-}
+${prompt}`;
 
-export default App;`;
-
-      this.generatedFiles['src/App.tsx'] = appContent;
-      console.log('✅ Generated App.tsx with routing');
-      
-    } catch (error) {
-      console.error('❌ App generation error:', error);
-      this.errors.push(`App generation failed: ${error.message}`);
+        const claudeResult = await this.askClaude(systemInstruction, 2048);
+        const tokensUsed = claudeResult.tokensUsed || 0;
+        this.totalTokensUsed += tokensUsed;
+        console.log(`📊 Page generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
+        
+        const { output: code } = claudeResult;
+        const cleanCode = this.cleanCodeResponse(code);
+        
+        const fileName = this.getPageFileName(page.name);
+        const filePath = `src/pages/${fileName}`;
+        
+        this.generatedFiles[filePath] = cleanCode;
+        console.log(`✅ Generated page: ${filePath}`);
+      } catch (error) {
+        console.error(`❌ Failed to generate page ${page.name}:`, error);
+        this.errors.push(`Page generation failed for ${page.name}: ${error.message}`);
+      }
     }
   }
 
   // 🧩 STEP 4: Generate Components (from dynamic plan)
   async generateComponentsFromPlan() {
-    console.log('🧩 Generating components from plan...');
-    
-    if (!this.projectPlan?.components || this.projectPlan.components.length === 0) {
-      console.log('No components defined in plan, skipping component generation');
+    if (!this.projectPlan?.components?.length) {
+      console.log('⚠️ No components to generate from plan');
       return;
     }
 
+    console.log('🧩 Generating components from plan...');
+    
     for (const component of this.projectPlan.components) {
-      const prompt = `Generate a React TypeScript component for:
-
-Component Name: ${component.name}
-Description: ${component.description}
-Project: ${this.projectPlan.projectName}
-
-Requirements:
-- Use TypeScript with proper type definitions
-- Use Tailwind CSS for styling
-- Follow React best practices
-- Make it responsive and accessible
-- Export as default
-
-Return ONLY the complete component code, no explanations.`;
-
       try {
+        let prompt = this.stackConfig.prompts.component
+          .replace('{name}', component.name)
+          .replace('{description}', component.description)
+          .replace('{type}', component.type || 'functional')
+          .replace('{props}', component.props?.join(', ') || 'none');
+
+        // Enhance prompt with TypeScript enforcement
+        prompt = this.enhancePromptForTypeScript(prompt);
+
         const claudeResult = await this.askClaude(prompt, 2048);
         const tokensUsed = claudeResult.tokensUsed || 0;
         this.totalTokensUsed += tokensUsed;
         console.log(`📊 Component generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
+        
         const { output: code } = claudeResult;
         const cleanCode = this.cleanCodeResponse(code);
         
@@ -877,7 +879,6 @@ Return ONLY the complete component code, no explanations.`;
         
         this.generatedFiles[filePath] = cleanCode;
         console.log(`✅ Generated component: ${filePath}`);
-        
       } catch (error) {
         console.error(`❌ Component generation error for ${component.name}:`, error);
         this.errors.push(`Component generation failed for ${component.name}: ${error.message}`);
@@ -993,5 +994,19 @@ After building, deploy the \`dist\` folder to any static hosting service:
 ---
 
 Generated by ZapQ IDE - AI-powered development platform`;
+  }
+
+  // Helper method to enforce file extension consistency
+  enhancePromptForTypeScript(prompt) {
+    return `CRITICAL FILE EXTENSION REQUIREMENT:
+- This is a TypeScript React project
+- ALL React components MUST use .tsx extension  
+- ALL files should be TypeScript (not JavaScript)
+- Be consistent with file extensions throughout
+- Never mix .js, .jsx, .ts, and .tsx in the same project
+
+${prompt}
+
+IMPORTANT: Generate only TypeScript React component code (.tsx). Be consistent with TypeScript throughout.`;
   }
 }
