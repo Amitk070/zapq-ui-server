@@ -204,10 +204,20 @@ app.post('/orchestrate-project', async (req, res) => {
     if (result.success) {
       console.log(`✅ Orchestrated generation successful: ${Object.keys(result.files).length} files`);
       
+      // Debug token tracking values
+      console.log('🔍 Token tracking debug:');
+      console.log('  - result.tokensUsed:', result.tokensUsed);
+      console.log('  - engine.totalTokensUsed:', engine.totalTokensUsed);
+      console.log('  - typeof result.tokensUsed:', typeof result.tokensUsed);
+      console.log('  - typeof engine.totalTokensUsed:', typeof engine.totalTokensUsed);
+      
       // Extract token usage from engine - prioritize actual tracking
-      const actualTokens = result.tokensUsed || engine.totalTokensUsed || 0;
-      const tokensUsed = actualTokens > 0 ? actualTokens : Math.max(1000, Object.keys(result.files).length * 200);
-      console.log(`🪙 Project generation used ${tokensUsed} tokens (actual: ${actualTokens}, engine: ${engine.totalTokensUsed})`);
+      const actualTokens = result.tokensUsed !== undefined ? result.tokensUsed : engine.totalTokensUsed;
+      const tokensUsed = (actualTokens !== undefined && actualTokens > 0) ? actualTokens : Math.max(1000, Object.keys(result.files).length * 200);
+      
+      console.log(`🪙 Final token calculation:`);
+      console.log(`  - actualTokens: ${actualTokens}`);
+      console.log(`  - tokensUsed (final): ${tokensUsed}`);
       
       res.json({
         success: true,
@@ -219,11 +229,12 @@ app.post('/orchestrate-project', async (req, res) => {
       });
     } else {
       console.log(`❌ Orchestrated generation failed:`, result.errors);
+      const errorTokens = result.tokensUsed !== undefined ? result.tokensUsed : engine.totalTokensUsed || 0;
       res.status(500).json({
         success: false,
         error: result.errors?.[0] || 'Project generation failed',
         details: result.errors,
-        tokensUsed: result.tokensUsed || engine.totalTokensUsed || 0
+        tokensUsed: errorTokens
       });
     }
     
@@ -372,23 +383,47 @@ app.post('/save', (req, res) => {
   res.send({ success: true });
 });
 
-async function askClaude(prompt, max_tokens = 2048) {
+// Enhanced askClaude function with rate limiting and retry logic
+async function askClaude(prompt, max_tokens = 2048, retryCount = 0) {
+  const maxRetries = 3;
+  const baseDelay = 60000; // 1 minute base delay
+  
   try {
     console.log(`🤖 Claude request: ${prompt.substring(0, 100)}... (${max_tokens} max tokens)`);
     
     const result = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'x-api-key': safeApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20240620',
-        max_tokens,
-        messages: [{ role: 'user', content: prompt }]
+        model: 'claude-3-sonnet-20240229',
+        max_tokens: max_tokens,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
       })
     });
+
+    if (result.status === 429) {
+      // Rate limit hit
+      const retryAfter = result.headers.get('retry-after');
+      const delay = retryAfter ? parseInt(retryAfter) * 1000 : baseDelay * Math.pow(2, retryCount);
+      
+      console.log(`⏱️ Rate limit hit. Retrying in ${delay/1000} seconds... (Attempt ${retryCount + 1}/${maxRetries + 1})`);
+      
+      if (retryCount < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return await askClaude(prompt, max_tokens, retryCount + 1);
+      } else {
+        throw new Error(`Rate limit exceeded. Max retries (${maxRetries}) reached. Please try again later.`);
+      }
+    }
 
     if (!result.ok) {
       console.error(`❌ Claude API error: ${result.status} ${result.statusText}`);
@@ -400,37 +435,30 @@ async function askClaude(prompt, max_tokens = 2048) {
     const raw = await result.json();
     console.log('🔍 Claude raw response structure:', Object.keys(raw));
 
-    // Check for API errors in response
     if (raw.error) {
       console.error('❌ Claude API returned error:', raw.error);
       throw new Error(`Claude API error: ${raw.error.message || 'Unknown error'}`);
     }
 
-    const output =
-      typeof raw === 'object' &&
-      raw !== null &&
-      Array.isArray(raw.content) &&
-      typeof raw.content[0]?.text === 'string'
-        ? raw.content[0].text
-        : '';
-
-    const tokensUsed =
-      typeof raw === 'object' &&
-      raw !== null &&
-      typeof raw.usage?.output_tokens === 'number'
-        ? raw.usage.output_tokens
-        : 0;
+    const output = raw.content?.[0]?.text || '';
+    const tokensUsed = raw.usage?.output_tokens || 0;
 
     console.log(`✅ Claude responded: ${output.length} chars, ${tokensUsed} tokens`);
-    
+
     if (output.length === 0) {
       console.warn('⚠️ Claude returned empty response');
       console.log('🔍 Full raw response:', JSON.stringify(raw, null, 2));
     }
 
     return { output, tokensUsed };
-    
   } catch (error) {
+    if (error.message.includes('Rate limit') && retryCount < maxRetries) {
+      console.log(`🔄 Retrying after error: ${error.message}`);
+      const delay = baseDelay * Math.pow(2, retryCount);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return await askClaude(prompt, max_tokens, retryCount + 1);
+    }
+    
     console.error('❌ askClaude error:', error);
     throw error;
   }
