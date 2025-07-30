@@ -794,4 +794,36 @@ Return ONLY the complete TypeScript/JavaScript code for each file, no explanatio
       ).join('\n');
       
       const componentImports = this.projectPlan.components.map(comp => 
-        `
+        `import ${comp.name} from './components/${comp.filename.replace('.jsx', '.tsx')}'`
+      ).join('\n');
+
+      const appContent = `import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+${pageImports}
+${componentImports}
+
+function App() {
+  return (
+    <Router>
+      <div className="min-h-screen bg-gray-50">
+        <Routes>
+          ${this.projectPlan.pages.map(page => 
+            `<Route path="${page.path}" element={<${page.name} />} />`
+          ).join('\n          ')}
+        </Routes>
+      </div>
+    </Router>
+  );
+}
+
+export default App;`;
+
+      this.generatedFiles['src/App.tsx'] = appContent;
+      console.log('✅ Generated App.tsx with routing');
+      
+    } catch (error) {
+      console.error('❌ App generation error:', error);
+      this.errors.push(`App generation failed: ${error.message}`);
+    }
+  }
+}
