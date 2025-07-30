@@ -399,7 +399,7 @@ async function askClaude(prompt, max_tokens = 2048, retryCount = 0) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-sonnet-20240229',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: max_tokens,
         messages: [
           {
