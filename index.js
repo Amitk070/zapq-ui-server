@@ -210,14 +210,10 @@ app.post('/orchestrate-project', async (req, res) => {
       
       res.json({
         success: true,
-        files: result.files, // Flatten the result structure for frontend compatibility
-        result: {
-          files: result.files,
-          projectPlan: engine.currentProjectPlan,
-          errors: result.errors,
-          warnings: result.warnings,
-          buildable: result.buildable
-        },
+        files: Object.entries(result.files).map(([path, content]) => ({
+          name: path,
+          content: content
+        })),
         tokensUsed: tokensUsed
       });
     } else {
