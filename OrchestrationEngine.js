@@ -838,4 +838,50 @@ export default App;`;
       this.errors.push(`App generation failed: ${error.message}`);
     }
   }
+
+  // 🧩 STEP 4: Generate Components (from dynamic plan)
+  async generateComponentsFromPlan() {
+    console.log('🧩 Generating components from plan...');
+    
+    if (!this.projectPlan?.components || this.projectPlan.components.length === 0) {
+      console.log('No components defined in plan, skipping component generation');
+      return;
+    }
+
+    for (const component of this.projectPlan.components) {
+      const prompt = `Generate a React TypeScript component for:
+
+Component Name: ${component.name}
+Description: ${component.description}
+Project: ${this.projectPlan.projectName}
+
+Requirements:
+- Use TypeScript with proper type definitions
+- Use Tailwind CSS for styling
+- Follow React best practices
+- Make it responsive and accessible
+- Export as default
+
+Return ONLY the complete component code, no explanations.`;
+
+      try {
+        const claudeResult = await this.askClaude(prompt, 2048);
+        const tokensUsed = claudeResult.tokensUsed || 0;
+        this.totalTokensUsed += tokensUsed;
+        console.log(`📊 Component generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
+        const { output: code } = claudeResult;
+        const cleanCode = this.cleanCodeResponse(code);
+        
+        const fileName = this.getComponentFileName(component.name);
+        const filePath = `src/components/${fileName}`;
+        
+        this.generatedFiles[filePath] = cleanCode;
+        console.log(`✅ Generated component: ${filePath}`);
+        
+      } catch (error) {
+        console.error(`❌ Component generation error for ${component.name}:`, error);
+        this.errors.push(`Component generation failed for ${component.name}: ${error.message}`);
+      }
+    }
+  }
 }
