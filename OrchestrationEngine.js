@@ -12,6 +12,15 @@ export class OrchestrationEngine {
     this.generatedFiles = {};
     this.currentStep = 0;
     this.errors = [];
+    this.totalTokensUsed = 0; // Track tokens across all Claude calls
+  }
+
+  // Helper method to track tokens automatically
+  async askClaudeWithTracking(prompt, maxTokens = 2048) {
+    const result = await this.askClaude(prompt, maxTokens);
+    this.totalTokensUsed += result.tokensUsed || 0;
+    console.log(`📊 Claude call tokens: ${result.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
+    return result;
   }
 
   async generateProject(projectName, userPrompt, onProgress) {
@@ -49,12 +58,15 @@ export class OrchestrationEngine {
 
       onProgress?.('🎉 Project complete!', 100);
       
+      console.log(`🪙 Total tokens used in project generation: ${this.totalTokensUsed}`);
+      
       return {
         success: true,
         files: this.generatedFiles,
         errors: this.errors,
         warnings: [],
-        buildable: isValid
+        buildable: isValid,
+        tokensUsed: this.totalTokensUsed // Return actual token usage
       };
 
     } catch (error) {
@@ -64,7 +76,8 @@ export class OrchestrationEngine {
         files: this.generatedFiles,
         errors: [error instanceof Error ? error.message : 'Unknown error'],
         warnings: [],
-        buildable: false
+        buildable: false,
+        tokensUsed: this.totalTokensUsed // Return tokens even on failure
       };
     }
   }
@@ -74,6 +87,7 @@ export class OrchestrationEngine {
     this.generatedFiles = {};
     this.currentStep = 0;
     this.errors = [];
+    this.totalTokensUsed = 0; // Reset token tracking
   }
 
   // 🎯 STEP 1: Generate Project Plan (JSON structure)
@@ -117,6 +131,8 @@ CRITICAL:
 
     try {
       const claudeResult = await this.askClaude(prompt, 1024);
+      this.totalTokensUsed += claudeResult.tokensUsed || 0;
+      console.log(`📊 Project plan tokens: ${claudeResult.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
       
       // Handle both direct string and object response formats
       const response = typeof claudeResult === 'string' ? claudeResult : claudeResult.output;
@@ -311,7 +327,10 @@ CRITICAL:
       .replace('{description}', this.projectPlan.description)
       .replace('{pages}', JSON.stringify(this.projectPlan.pages));
 
-    const { output: code } = await this.askClaude(prompt, 3072);
+    const claudeResponse = await this.askClaude(prompt, 3072);
+    this.totalTokensUsed += claudeResponse.tokensUsed || 0;
+    console.log(`📊 Config generation tokens: ${claudeResponse.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
+    const { output: code } = claudeResponse;
     const cleanCode = this.cleanCodeResponse(code);
     
     this.generatedFiles[step.outputPath] = cleanCode;
@@ -330,8 +349,11 @@ CRITICAL:
         .replace('{projectContext}', this.projectPlan.description);
 
       try {
-        const { output: code } = await this.askClaude(prompt, 3072);
-        const cleanCode = this.cleanCodeResponse(code);
+            const claudeResponse2 = await this.askClaude(prompt, 3072);
+    this.totalTokensUsed += claudeResponse2.tokensUsed || 0;
+    console.log(`📊 Entry point generation tokens: ${claudeResponse2.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
+    const { output: code } = claudeResponse2;
+    const cleanCode = this.cleanCodeResponse(code);
         
         const fileName = this.getPageFileName(page.name);
         const filePath = `${step.outputPath}${fileName}`;
@@ -698,72 +720,54 @@ CRITICAL:
         },
         dependencies: {
           "react": "^18.2.0",
-          "react-dom": "^18.2.0"
+          "react-dom": "^18.2.0",
+          "react-router-dom": "^6.8.0"
         },
         devDependencies: {
           "@vitejs/plugin-react": "^4.0.0",
           "vite": "^4.4.0",
           "tailwindcss": "^3.3.0",
           "postcss": "^8.4.24", 
-          "autoprefixer": "^10.4.14"
+          "autoprefixer": "^10.4.14",
+          "@types/react": "^18.2.0",
+          "@types/react-dom": "^18.2.0",
+          "typescript": "^5.0.0"
         }
       };
       
       this.generatedFiles['package.json'] = JSON.stringify(packageJson, null, 2);
       
       // Generate essential config files
-      this.generatedFiles['vite.config.js'] = `import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+      const prompt = `Generate essential config files for a ${this.projectPlan.projectName} project.
 
-export default defineConfig({
-  plugins: [react()]
-})`;
+Stack: ${this.stackConfig.name}
+Framework: ${this.stackConfig.framework}
 
-      this.generatedFiles['tailwind.config.js'] = `export default {
-  content: ["./index.html", "./src/**/*.{js,jsx}"],
-  theme: { extend: {} },
-  plugins: []
-}`;
+Required files:
+- vite.config.ts
+- tailwind.config.js
+- postcss.config.js
+- index.html
+- src/main.tsx
+- src/index.css
+- tsconfig.json
+- tsconfig.node.json
 
-      this.generatedFiles['postcss.config.js'] = `export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {}
-  }
-}`;
+Return ONLY the complete TypeScript/JavaScript code for each file, no explanations.`;
 
-      this.generatedFiles['index.html'] = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${this.projectPlan.projectName}</title>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="/src/main.jsx"></script>
-</body>
-</html>`;
+      const claudeResponse = await this.askClaude(prompt, 3072);
+      this.totalTokensUsed += claudeResponse.tokensUsed || 0;
+      console.log(`📊 Config generation tokens: ${claudeResponse.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
+      const { output: code } = claudeResponse;
 
-      this.generatedFiles['src/main.jsx'] = `import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
-import './index.css'
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-)`;
-
-      this.generatedFiles['src/index.css'] = `@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-}`;
+      this.generatedFiles['vite.config.ts'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
+      this.generatedFiles['tailwind.config.js'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
+      this.generatedFiles['postcss.config.js'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
+      this.generatedFiles['index.html'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
+      this.generatedFiles['src/main.tsx'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
+      this.generatedFiles['src/index.css'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
+      this.generatedFiles['tsconfig.json'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
+      this.generatedFiles['tsconfig.node.json'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
       
       console.log('✅ Config files generated');
       
@@ -784,224 +788,10 @@ body {
     }
     
     try {
-      // Generate App.jsx as main router/container
-      const appComponent = `import React from 'react'
-${this.projectPlan.pages.map(page => `import ${page.name} from './pages/${page.filename}'`).join('\n')}
-${this.projectPlan.components.map(comp => `import ${comp.name} from './components/${comp.filename}'`).join('\n')}
-
-function App() {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      <main>
-        <Home />
-      </main>
-      <Footer />
-    </div>
-  )
-}
-
-export default App`;
+      // Generate App.tsx with proper routing
+      const pageImports = this.projectPlan.pages.map(page => 
+        `import ${page.name} from './pages/${page.filename.replace('.jsx', '.tsx')}'`
+      ).join('\n');
       
-      this.generatedFiles['src/App.jsx'] = appComponent;
-      
-      // Generate individual pages
-      for (const page of this.projectPlan.pages) {
-        await this.generateSinglePage(page);
-      }
-      
-      console.log(`✅ Generated ${this.projectPlan.pages.length} pages`);
-      
-    } catch (error) {
-      console.error('❌ Failed to generate pages:', error);
-      throw error;
-    }
-  }
-
-  // 🧩 STEP 4: Generate Components (from dynamic plan)
-  async generateComponentsFromPlan() {
-    console.log('🧩 Generating components from plan...');
-    
-    if (!this.projectPlan.components || this.projectPlan.components.length === 0) {
-      console.log('No components defined in plan, skipping');
-      return;
-    }
-    
-    try {
-      for (const component of this.projectPlan.components) {
-        await this.generateSingleComponent(component);
-      }
-      
-      console.log(`✅ Generated ${this.projectPlan.components.length} components`);
-      
-    } catch (error) {
-      console.error('❌ Failed to generate components:', error);
-      throw error;
-    }
-  }
-
-  // 📚 STEP 5: Generate Documentation
-  async generateDocumentation() {
-    console.log('📚 Generating documentation...');
-    
-    try {
-      const readme = `# ${this.projectPlan.projectName}
-
-${this.projectPlan.description}
-
-## Features
-
-${this.projectPlan.features ? this.projectPlan.features.map(f => `- ${f}`).join('\n') : '- Modern React application\n- Tailwind CSS styling\n- Responsive design'}
-
-## Getting Started
-
-\`\`\`bash
-npm install
-npm run dev
-\`\`\`
-
-## Build for Production
-
-\`\`\`bash
-npm run build
-\`\`\`
-
-## Pages
-
-${this.projectPlan.pages ? this.projectPlan.pages.map(p => `- **${p.name}** (${p.path}): ${p.description}`).join('\n') : 'No pages defined'}
-
-## Components
-
-${this.projectPlan.components ? this.projectPlan.components.map(c => `- **${c.name}**: ${c.description}`).join('\n') : 'No components defined'}
-`;
-      
-      this.generatedFiles['README.md'] = readme;
-      console.log('✅ Documentation generated');
-      
-    } catch (error) {
-      console.error('❌ Failed to generate documentation:', error);
-      // Documentation is non-critical, don't throw
-    }
-  }
-
-  // Helper methods for page/component generation
-  async generateDefaultApp() {
-    const appComponent = `import React from 'react'
-
-function App() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          ${this.projectPlan.projectName}
-        </h1>
-        <p className="text-lg text-gray-600">
-          ${this.projectPlan.description}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-export default App`;
-    
-    this.generatedFiles['src/App.jsx'] = appComponent;
-  }
-
-  async generateSinglePage(page) {
-    const prompt = `Generate a React component for: ${page.name} page.
-Description: ${page.description}
-Project context: ${this.projectPlan.description}
-
-Requirements:
-- Use Tailwind CSS classes
-- Modern, responsive design
-- Export as default
-- Functional component
-
-Return ONLY the JSX component code, no explanations.`;
-
-    try {
-      const claudeResult = await this.askClaude(prompt, 1024);
-      const response = typeof claudeResult === 'string' ? claudeResult : claudeResult.output;
-      const cleanCode = this.cleanCodeResponse(response);
-      this.generatedFiles[`src/pages/${page.filename}`] = cleanCode;
-      console.log(`✅ Generated page: ${page.filename}`);
-    } catch (error) {
-      console.error(`❌ Failed to generate page ${page.filename}:`, error);
-      // Generate fallback
-      this.generatedFiles[`src/pages/${page.filename}`] = this.generateFallbackPage(page);
-    }
-  }
-
-  async generateSingleComponent(component) {
-    const prompt = `Generate a React component: ${component.name}
-Description: ${component.description}
-Project context: ${this.projectPlan.description}
-
-Requirements:
-- Use Tailwind CSS classes
-- Modern, responsive design
-- Export as default
-- Functional component
-
-Return ONLY the JSX component code, no explanations.`;
-
-    try {
-      const claudeResult = await this.askClaude(prompt, 1024);
-      const response = typeof claudeResult === 'string' ? claudeResult : claudeResult.output;
-      const cleanCode = this.cleanCodeResponse(response);
-      this.generatedFiles[`src/components/${component.filename}`] = cleanCode;
-      console.log(`✅ Generated component: ${component.filename}`);
-    } catch (error) {
-      console.error(`❌ Failed to generate component ${component.filename}:`, error);
-      // Generate fallback
-      this.generatedFiles[`src/components/${component.filename}`] = this.generateFallbackComponent(component);
-    }
-  }
-
-  generateFallbackPage(page) {
-    return `import React from 'react'
-
-function ${page.name}() {
-  return (
-    <div className="py-12 px-4">
-      <div className="max-w-4xl mx-auto text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">${page.name}</h1>
-        <p className="text-lg text-gray-600">${page.description}</p>
-      </div>
-    </div>
-  )
-}
-
-export default ${page.name}`;
-  }
-
-  generateFallbackComponent(component) {
-    return `import React from 'react'
-
-function ${component.name}() {
-  return (
-    <div className="p-4">
-      <h2 className="text-xl font-semibold">${component.name}</h2>
-      <p className="text-gray-600">${component.description}</p>
-    </div>
-  )
-}
-
-export default ${component.name}`;
-  }
-
-  // Getters for debugging/monitoring
-  get currentProjectPlan() {
-    return this.projectPlan;
-  }
-
-  get currentFiles() {
-    return { ...this.generatedFiles };
-  }
-
-  get currentErrors() {
-    return [...this.errors];
-  }
-} 
+      const componentImports = this.projectPlan.components.map(comp => 
+        `
