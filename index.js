@@ -204,9 +204,10 @@ app.post('/orchestrate-project', async (req, res) => {
     if (result.success) {
       console.log(`✅ Orchestrated generation successful: ${Object.keys(result.files).length} files`);
       
-      // Extract token usage from engine (if available) or estimate based on files
-      const tokensUsed = result.tokensUsed || Math.max(1000, Object.keys(result.files).length * 200);
-      console.log(`🪙 Project generation used ${tokensUsed} tokens`);
+      // Extract token usage from engine - prioritize actual tracking
+      const actualTokens = result.tokensUsed || engine.totalTokensUsed || 0;
+      const tokensUsed = actualTokens > 0 ? actualTokens : Math.max(1000, Object.keys(result.files).length * 200);
+      console.log(`🪙 Project generation used ${tokensUsed} tokens (actual: ${actualTokens}, engine: ${engine.totalTokensUsed})`);
       
       res.json({
         success: true,
@@ -222,7 +223,7 @@ app.post('/orchestrate-project', async (req, res) => {
         success: false,
         error: result.errors?.[0] || 'Project generation failed',
         details: result.errors,
-        tokensUsed: result.tokensUsed || 0
+        tokensUsed: result.tokensUsed || engine.totalTokensUsed || 0
       });
     }
     
