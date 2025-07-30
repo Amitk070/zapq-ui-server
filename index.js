@@ -376,38 +376,67 @@ app.post('/save', (req, res) => {
 });
 
 async function askClaude(prompt, max_tokens = 2048) {
-  const result = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': safeApiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20240620',
-      max_tokens,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
+  try {
+    console.log(`🤖 Claude request: ${prompt.substring(0, 100)}... (${max_tokens} max tokens)`);
+    
+    const result = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': safeApiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20240620',
+        max_tokens,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
 
-  const raw = await result.json();
+    if (!result.ok) {
+      console.error(`❌ Claude API error: ${result.status} ${result.statusText}`);
+      const errorText = await result.text();
+      console.error('❌ Error details:', errorText);
+      throw new Error(`Claude API failed: ${result.status} ${result.statusText}`);
+    }
 
-  const output =
-    typeof raw === 'object' &&
-    raw !== null &&
-    Array.isArray(raw.content) &&
-    typeof raw.content[0]?.text === 'string'
-      ? raw.content[0].text
-      : '';
+    const raw = await result.json();
+    console.log('🔍 Claude raw response structure:', Object.keys(raw));
 
-  const tokensUsed =
-    typeof raw === 'object' &&
-    raw !== null &&
-    typeof raw.usage?.output_tokens === 'number'
-      ? raw.usage.output_tokens
-      : 0;
+    // Check for API errors in response
+    if (raw.error) {
+      console.error('❌ Claude API returned error:', raw.error);
+      throw new Error(`Claude API error: ${raw.error.message || 'Unknown error'}`);
+    }
 
-  return { output, tokensUsed };
+    const output =
+      typeof raw === 'object' &&
+      raw !== null &&
+      Array.isArray(raw.content) &&
+      typeof raw.content[0]?.text === 'string'
+        ? raw.content[0].text
+        : '';
+
+    const tokensUsed =
+      typeof raw === 'object' &&
+      raw !== null &&
+      typeof raw.usage?.output_tokens === 'number'
+        ? raw.usage.output_tokens
+        : 0;
+
+    console.log(`✅ Claude responded: ${output.length} chars, ${tokensUsed} tokens`);
+    
+    if (output.length === 0) {
+      console.warn('⚠️ Claude returned empty response');
+      console.log('🔍 Full raw response:', JSON.stringify(raw, null, 2));
+    }
+
+    return { output, tokensUsed };
+    
+  } catch (error) {
+    console.error('❌ askClaude error:', error);
+    throw error;
+  }
 }
 
 // Legacy endpoint for direct Claude calls
