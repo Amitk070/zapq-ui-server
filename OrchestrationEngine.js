@@ -351,12 +351,12 @@ CRITICAL:
         .replace('{projectContext}', this.projectPlan.description);
 
       try {
-            const claudeResult = await this.askClaude(prompt, 2048);
+        const claudeResult = await this.askClaude(prompt, 2048);
         const tokensUsed = claudeResult.tokensUsed || 0;
         this.totalTokensUsed += tokensUsed;
         console.log(`📊 Page generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
         const { output: code } = claudeResult;
-    const cleanCode = this.cleanCodeResponse(code);
+        const cleanCode = this.cleanCodeResponse(code);
         
         const fileName = this.getPageFileName(page.name);
         const filePath = `${step.outputPath}${fileName}`;
