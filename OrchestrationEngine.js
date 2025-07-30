@@ -131,11 +131,13 @@ CRITICAL:
 
     try {
       const claudeResult = await this.askClaude(prompt, 1024);
-      this.totalTokensUsed += claudeResult.tokensUsed || 0;
-      console.log(`📊 Project plan tokens: ${claudeResult.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
       
       // Handle both direct string and object response formats
       const response = typeof claudeResult === 'string' ? claudeResult : claudeResult.output;
+      const tokensUsed = typeof claudeResult === 'object' ? (claudeResult.tokensUsed || 0) : 0;
+      
+      this.totalTokensUsed += tokensUsed;
+      console.log(`📊 Project plan tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
       
       console.log('🔍 Claude raw response:', response.substring(0, 500) + '...');
       
@@ -349,10 +351,11 @@ CRITICAL:
         .replace('{projectContext}', this.projectPlan.description);
 
       try {
-            const claudeResponse2 = await this.askClaude(prompt, 3072);
-    this.totalTokensUsed += claudeResponse2.tokensUsed || 0;
-    console.log(`📊 Entry point generation tokens: ${claudeResponse2.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
-    const { output: code } = claudeResponse2;
+            const claudeResult = await this.askClaude(prompt, 2048);
+        const tokensUsed = claudeResult.tokensUsed || 0;
+        this.totalTokensUsed += tokensUsed;
+        console.log(`📊 Page generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
+        const { output: code } = claudeResult;
     const cleanCode = this.cleanCodeResponse(code);
         
         const fileName = this.getPageFileName(page.name);
@@ -377,7 +380,11 @@ CRITICAL:
         .replace('{props}', component.props?.join(', ') || 'none');
 
       try {
-        const { output: code } = await this.askClaude(prompt, 2048);
+        const claudeResult = await this.askClaude(prompt, 2048);
+        const tokensUsed = claudeResult.tokensUsed || 0;
+        this.totalTokensUsed += tokensUsed;
+        console.log(`📊 Page generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
+        const { output: code } = claudeResult;
         const cleanCode = this.cleanCodeResponse(code);
         
         const fileName = this.getComponentFileName(component.name);
@@ -396,7 +403,11 @@ CRITICAL:
       .replace('{projectName}', this.projectPlan.projectName)
       .replace('{description}', this.projectPlan.description);
 
-    const { output: readme } = await this.askClaude(prompt, 2048);
+    const claudeResult = await this.askClaude(prompt, 2048);
+    const tokensUsed = claudeResult.tokensUsed || 0;
+    this.totalTokensUsed += tokensUsed;
+    console.log(`📊 Documentation generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
+    const { output: readme } = claudeResult;
     this.generatedFiles[step.outputPath] = readme;
     console.log(`✅ Generated README: ${step.outputPath}`);
   }
@@ -756,8 +767,9 @@ Required files:
 Return ONLY the complete TypeScript/JavaScript code for each file, no explanations.`;
 
       const claudeResponse = await this.askClaude(prompt, 3072);
-      this.totalTokensUsed += claudeResponse.tokensUsed || 0;
-      console.log(`📊 Config generation tokens: ${claudeResponse.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
+      const tokensUsed = claudeResponse.tokensUsed || 0;
+      this.totalTokensUsed += tokensUsed;
+      console.log(`📊 Config generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
       const { output: code } = claudeResponse;
 
       this.generatedFiles['vite.config.ts'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
