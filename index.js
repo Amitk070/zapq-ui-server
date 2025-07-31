@@ -617,6 +617,6 @@ app.listen(PORT, () => {
   console.log(`🧩 Available stacks: ${getAllStacks().length}`);
 }); 
 
-const EnhancedBackendAPI = require('./EnhancedBackendAPI');
+import { EnhancedBackendAPI } from './EnhancedBackendAPI.mjs';
 const enhancedAPI = new EnhancedBackendAPI();
 enhancedAPI.setupRoutes(app); 
