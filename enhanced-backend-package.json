@@ -1,0 +1,58 @@
+{
+  "name": "zapq-backend-enhanced",
+  "version": "2.0.0",
+  "description": "Enhanced ZapQ Backend with Production-Quality Project Generation",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "validate": "node scripts/validate-system.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "morgan": "^1.10.0",
+    "compression": "^1.7.4",
+    "rate-limiter-flexible": "^3.0.8",
+    "dotenv": "^16.3.1",
+    "joi": "^17.9.2",
+    "winston": "^3.10.0",
+    "uuid": "^9.0.0",
+    "multer": "^1.4.5-lts.1",
+    "archiver": "^6.0.1",
+    "sharp": "^0.32.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.6.2",
+    "eslint": "^8.46.0",
+    "prettier": "^3.0.1",
+    "@types/node": "^20.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "zapq",
+    "project-generator",
+    "ai-development",
+    "production-ready",
+    "bolt-quality",
+    "react-generator"
+  ],
+  "author": "ZapQ Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zapq/zapq-backend-enhanced"
+  },
+  "bugs": {
+    "url": "https://github.com/zapq/zapq-backend-enhanced/issues"
+  },
+  "homepage": "https://zapq.dev"
+} enhanced-backend-package.json
