@@ -106,15 +106,31 @@ const safeApiKey = API_KEY;
 
 const app = express();
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:5174', 
-    'http://localhost:5175',
-    'http://localhost:5176',
-    'http://localhost:5177',
-    'https://code.zapq.dev'
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // List of allowed origins
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174', 
+      'http://localhost:5175',
+      'http://localhost:5176',
+      'http://localhost:5177',
+      'https://code.zapq.dev',
+      'https://zapq-ui-main-f6uekkucl-amit-ks-projects-30a8790d.vercel.app'
+    ];
+    
+    // Allow any Vercel deployment (*.vercel.app)
+    const isVercelDomain = origin.endsWith('.vercel.app');
+    
+    if (allowedOrigins.includes(origin) || isVercelDomain) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -597,6 +613,10 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 NEW ARCHITECTURE: Claude backend running on port ${PORT}`);
   console.log(`🔗 Supporting OrchestrationEngine + StackConfigs`);
-  console.log(`📡 CORS enabled for localhost:5177 and code.zapq.dev`);
+  console.log(`📡 CORS enabled for localhost, code.zapq.dev, and all Vercel deployments`);
   console.log(`🧩 Available stacks: ${getAllStacks().length}`);
 }); 
+
+const EnhancedBackendAPI = require('./EnhancedBackendAPI');
+const enhancedAPI = new EnhancedBackendAPI();
+enhancedAPI.setupRoutes(app); 
