@@ -615,8 +615,19 @@ app.listen(PORT, () => {
   console.log(`🔗 Supporting OrchestrationEngine + StackConfigs`);
   console.log(`📡 CORS enabled for localhost, code.zapq.dev, and all Vercel deployments`);
   console.log(`🧩 Available stacks: ${getAllStacks().length}`);
+  console.log(`🔧 WebContainer Build Validation System Ready`);
+  console.log(`📊 Build validation endpoints available:`);
+  console.log(`  POST /api/validate-build`);
+  console.log(`  GET  /api/validate-build/:validationId`);
+  console.log(`  DELETE /api/validate-build/:validationId`);
+  console.log(`  GET  /api/validate-build/:validationId/preview`);
 }); 
 
 import { EnhancedBackendAPI } from './EnhancedBackendAPI.mjs';
+import { BuildValidationAPI } from './buildValidationAPI.js';
+
 const enhancedAPI = new EnhancedBackendAPI();
-enhancedAPI.setupRoutes(app); 
+const buildValidationAPI = new BuildValidationAPI();
+
+enhancedAPI.setupRoutes(app);
+buildValidationAPI.setupRoutes(app); 
