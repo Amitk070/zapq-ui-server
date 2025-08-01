@@ -23,7 +23,7 @@
     "joi": "^17.9.2",
     "winston": "^3.10.0",
     "uuid": "^9.0.0",
-     "@webcontainer/api": "^1.0.0",
+     "@webcontainer/api": "^1.0.0"
   },
   "devDependencies": {
     "eslint": "^8.46.0",
