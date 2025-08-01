@@ -1,33 +1,13 @@
 import { WebContainer } from '@webcontainer/api';
-import { callClaude } from '../api/callClaude';
+import fetch from 'node-fetch';
 
-export interface BuildResult {
-  success: boolean;
-  logs: string[];
-  errors: BuildError[];
-  previewUrl?: string;
-}
+export class WebContainerService {
+  constructor() {
+    this.webcontainerInstance = null;
+    this.isInitialized = false;
+  }
 
-export interface BuildError {
-  file: string;
-  line?: number;
-  column?: number;
-  message: string;
-  type: 'syntax' | 'runtime' | 'dependency' | 'build';
-}
-
-export interface FixResult {
-  success: boolean;
-  fixedFiles: Record<string, string>;
-  explanation: string;
-  diff?: string;
-}
-
-class WebContainerService {
-  private webcontainerInstance: WebContainer | null = null;
-  private isInitialized = false;
-
-  async initialize(): Promise<void> {
+  async initialize() {
     if (this.isInitialized) return;
 
     try {
@@ -40,13 +20,13 @@ class WebContainerService {
     }
   }
 
-  async mountProject(files: Record<string, string>): Promise<void> {
+  async mountProject(files) {
     if (!this.webcontainerInstance) {
       throw new Error('WebContainer not initialized');
     }
 
     // Create a proper project structure
-    const projectFiles: Record<string, any> = {
+    const projectFiles = {
       'package.json': {
         file: {
           contents: this.generatePackageJson(files),
@@ -74,12 +54,12 @@ class WebContainerService {
     console.log('📁 Project files mounted to WebContainer');
   }
 
-  async installDependencies(): Promise<string[]> {
+  async installDependencies() {
     if (!this.webcontainerInstance) {
       throw new Error('WebContainer not initialized');
     }
 
-    const logs: string[] = [];
+    const logs = [];
     
     try {
       const installProcess = await this.webcontainerInstance.spawn('npm', ['install']);
@@ -105,13 +85,13 @@ class WebContainerService {
     }
   }
 
-  async buildProject(): Promise<BuildResult> {
+  async buildProject() {
     if (!this.webcontainerInstance) {
       throw new Error('WebContainer not initialized');
     }
 
-    const logs: string[] = [];
-    const errors: BuildError[] = [];
+    const logs = [];
+    const errors = [];
 
     try {
       const buildProcess = await this.webcontainerInstance.spawn('npm', ['run', 'build']);
@@ -157,7 +137,7 @@ class WebContainerService {
     }
   }
 
-  async startDevServer(): Promise<string> {
+  async startDevServer() {
     if (!this.webcontainerInstance) {
       throw new Error('WebContainer not initialized');
     }
@@ -179,8 +159,8 @@ class WebContainerService {
     }
   }
 
-  async fixBuildErrors(errors: BuildError[], originalFiles: Record<string, string>): Promise<FixResult> {
-    const fixedFiles: Record<string, string> = {};
+  async fixBuildErrors(errors, originalFiles) {
+    const fixedFiles = {};
     let explanation = '';
 
     for (const error of errors) {
@@ -205,11 +185,7 @@ class WebContainerService {
     };
   }
 
-  private async fixFile(error: BuildError, originalContent: string): Promise<{
-    success: boolean;
-    fixedContent: string;
-    explanation: string;
-  }> {
+  async fixFile(error, originalContent) {
     const prompt = `I have a build error in my ${error.file} file. Please fix it and return only the corrected file content.
 
 Error details:
@@ -227,8 +203,23 @@ ${originalContent}
 Please return only the corrected file content, no explanations in the response.`;
 
     try {
-      const response = await callClaude(prompt);
-      const fixedContent = this.extractCodeFromResponse(response);
+      // Call Claude API
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.CLAUDE_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-sonnet-20240229',
+          max_tokens: 4000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      const data = await response.json();
+      const fixedContent = this.extractCodeFromResponse(data.content[0].text);
       
       return {
         success: true,
@@ -245,8 +236,8 @@ Please return only the corrected file content, no explanations in the response.`
     }
   }
 
-  private parseBuildErrors(errorLogs: string[]): BuildError[] {
-    const errors: BuildError[] = [];
+  parseBuildErrors(errorLogs) {
+    const errors = [];
 
     for (const log of errorLogs) {
       // Parse common error patterns
@@ -269,14 +260,14 @@ Please return only the corrected file content, no explanations in the response.`
     return errors;
   }
 
-  private determineErrorType(log: string): BuildError['type'] {
+  determineErrorType(log) {
     if (log.includes('syntax') || log.includes('Unexpected token')) return 'syntax';
     if (log.includes('Cannot find module') || log.includes('Module not found')) return 'dependency';
     if (log.includes('ReferenceError') || log.includes('TypeError')) return 'runtime';
     return 'build';
   }
 
-  private extractCodeFromResponse(response: string): string {
+  extractCodeFromResponse(response) {
     // Extract code blocks from Claude's response
     const codeBlockMatch = response.match(/```[\s\S]*?```/);
     if (codeBlockMatch) {
@@ -285,7 +276,7 @@ Please return only the corrected file content, no explanations in the response.`
     return response.trim();
   }
 
-  private generatePackageJson(files: Record<string, string>): string {
+  generatePackageJson(files) {
     const hasReact = Object.values(files).some(content => 
       content.includes('react') || content.includes('React')
     );
@@ -294,7 +285,7 @@ Please return only the corrected file content, no explanations in the response.`
       file.endsWith('.ts') || file.endsWith('.tsx')
     );
 
-    const dependencies: Record<string, string> = {
+    const dependencies = {
       "vite": "^5.0.0",
       "@vitejs/plugin-react": "^4.0.0",
     };
@@ -328,7 +319,7 @@ Please return only the corrected file content, no explanations in the response.`
     }, null, 2);
   }
 
-  private generateDefaultHTML(): string {
+  generateDefaultHTML() {
     return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -343,7 +334,7 @@ Please return only the corrected file content, no explanations in the response.`
 </html>`;
   }
 
-  async cleanup(): Promise<void> {
+  async cleanup() {
     if (this.webcontainerInstance) {
       await this.webcontainerInstance.teardown();
       this.webcontainerInstance = null;
