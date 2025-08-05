@@ -202,17 +202,17 @@ app.get('/stacks', (req, res) => {
 
 // 🆕 NEW ARCHITECTURE: Orchestrated project generation
 app.post('/orchestrate-project', async (req, res) => {
-  const { stackId, projectName, userPrompt } = req.body;
+  const { stackId, userPrompt, sessionId, projectName } = req.body;
   
-  if (!stackId || !projectName || !userPrompt) {
+  if (!stackId || !userPrompt) {
     return res.status(400).json({ 
       success: false, 
-      error: 'stackId, projectName, and userPrompt are required' 
+      error: 'stackId and userPrompt are required' 
     });
   }
   
   try {
-    console.log(`🏗️ Starting orchestrated project generation: ${projectName} (${stackId})`);
+    console.log(`🏗️ Starting orchestrated project generation: ${projectName || userPrompt} (${stackId})`);
     
     // Get stack configuration
     const stackConfig = getStackConfig(stackId);
@@ -224,7 +224,7 @@ app.post('/orchestrate-project', async (req, res) => {
     }
     
     // Create orchestration engine instance
-    const engine = new OrchestrationEngine(stackId, askClaude, stackConfig);
+    const engine = new OrchestrationEngine(sessionId, askClaude, stackConfig);
     
     // Progress tracking (for future WebSocket implementation)
     const progressCallback = (step, progress) => {
@@ -233,7 +233,7 @@ app.post('/orchestrate-project', async (req, res) => {
     };
     
     // Generate project
-    const result = await engine.generateProject(projectName, userPrompt, progressCallback);
+    const result = await engine.generateProject(projectName || userPrompt, userPrompt, progressCallback);
     
     if (result.success) {
       console.log(`✅ Orchestrated generation successful: ${Object.keys(result.files).length} files`);
