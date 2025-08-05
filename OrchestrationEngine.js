@@ -29,35 +29,49 @@ export class OrchestrationEngine {
       throw new Error('askClaude function not provided to OrchestrationEngine');
     }
     
-    try {
-      const result = await this.askClaude(enhancedPrompt, maxTokens);
-      
-      // Track in session history
-      this.session.history.push({
-        timestamp: new Date().toISOString(),
-        prompt: enhancedPrompt,
-        response: result.output,
-        tokensUsed: result.tokensUsed || 0,
-        context: context,
-        step: this.session.currentStep
-      });
-      
-      this.session.totalTokensUsed += result.tokensUsed || 0;
-      console.log(`📊 Session ${this.sessionId} - Claude call: ${result.tokensUsed || 0} tokens (Total: ${this.session.totalTokensUsed})`);
-      
-      return result;
-    } catch (error) {
-      console.error(`❌ askClaude error:`, error);
-      
-      // Handle rate limiting specifically
-      if (error.message.includes('rate limit') || error.message.includes('Rate limit')) {
-        console.log('⏱️ Rate limit detected, waiting before retry...');
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
-        throw new Error('Rate limit exceeded. Please try again in a few minutes.');
+    // Add exponential backoff for rate limiting
+    let retryCount = 0;
+    const maxRetries = 3;
+    const baseDelay = 2000; // 2 seconds
+    
+    while (retryCount <= maxRetries) {
+      try {
+        const result = await this.askClaude(enhancedPrompt, maxTokens);
+        
+        // Track in session history
+        this.session.history.push({
+          timestamp: new Date().toISOString(),
+          prompt: enhancedPrompt,
+          response: result.output,
+          tokensUsed: result.tokensUsed || 0,
+          context: context,
+          step: this.session.currentStep
+        });
+        
+        this.session.totalTokensUsed += result.tokensUsed || 0;
+        console.log(`📊 Session ${this.sessionId} - Claude call: ${result.tokensUsed || 0} tokens (Total: ${this.session.totalTokensUsed})`);
+        
+        return result;
+      } catch (error) {
+        console.error(`❌ askClaude error (attempt ${retryCount + 1}):`, error);
+        
+        // Handle rate limiting specifically
+        if (error.message.includes('rate limit') || error.message.includes('Rate limit')) {
+          retryCount++;
+          if (retryCount <= maxRetries) {
+            const delay = baseDelay * Math.pow(2, retryCount - 1); // Exponential backoff
+            console.log(`⏱️ Rate limit detected, waiting ${delay}ms before retry ${retryCount}/${maxRetries}...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          } else {
+            throw new Error('Rate limit exceeded after multiple retries. Please try again later.');
+          }
+        }
+        
+        // For non-rate-limit errors, don't retry
+        this.session.errors.push(error.message);
+        throw error;
       }
-      
-      this.session.errors.push(error.message);
-      throw error;
     }
   }
 
@@ -182,10 +196,9 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting or explanations.`;
 
 Project: ${data.projectName}
 Description: ${data.description}
-Enabled Features: ${enabledFeatures}
-Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
+Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling}
 
-🚀 ENTERPRISE PLANNING REQUIREMENTS:
+🚀 PLANNING REQUIREMENTS:
 - Plan for a FULLY FUNCTIONAL website with complete content
 - Include ALL necessary components and pages
 - Use realistic, professional content (no Lorem Ipsum)
@@ -198,16 +211,11 @@ Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.
 - Include proper form validation and user feedback
 
 📁 REQUIRED CONFIGURATION FILES:
-
-1. **package.json** - Complete project configuration with ALL dependencies
-2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
-3. **tailwind.config.js** - Tailwind CSS configuration with custom theme
-4. **tsconfig.json** - TypeScript configuration
-5. **tsconfig.node.json** - Node TypeScript configuration
-6. **index.html** - Complete HTML with proper meta tags and SEO
-7. **src/main.tsx** - React entry point with error boundaries
-8. **src/App.tsx** - COMPLETE main App component with ALL sections
-9. **src/index.css** - Global styles with Tailwind and custom CSS
+- package.json (ALL dependencies)
+- vite.config.ts/next.config.js (build config)
+- tailwind.config.js, tsconfig.json, tsconfig.node.json
+- index.html (SEO-optimized)
+- src/main.tsx, src/App.tsx, src/index.css
 
 🎯 PLANNING REQUIREMENTS:
 - Plan for realistic business content and structure
@@ -262,52 +270,30 @@ IMPORTANT: Each file must be complete and production-ready.`;
 
 Project: ${data.projectName}
 Description: ${data.description}
-Enabled Features: ${enabledFeatures}
-Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
+Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling}
 
-🚀 ENTERPRISE REQUIREMENTS:
-- Create a FULLY FUNCTIONAL website with complete content
-- Include ALL necessary components and pages
-- Use realistic, professional content (no Lorem Ipsum)
-- Implement responsive design with mobile-first approach
-- Add proper SEO meta tags and structured data
-- Include error handling and loading states
-- Use modern React patterns with TypeScript
-- Implement accessibility features (ARIA labels, keyboard navigation)
-- Add smooth animations and transitions
-- Include proper form validation and user feedback
+🚀 REQUIREMENTS:
+- FULLY FUNCTIONAL website with complete content
+- Realistic, professional content (no Lorem Ipsum)
+- Responsive design with mobile-first approach
+- SEO meta tags and structured data
+- Error handling and loading states
+- Accessibility features (ARIA labels, keyboard navigation)
+- Smooth animations and transitions
+- Form validation and user feedback
 
-📁 REQUIRED FILES WITH COMPLETE CONTENT:
+📁 REQUIRED FILES:
+- package.json (ALL dependencies)
+- vite.config.ts/next.config.js (build config)
+- tailwind.config.js, tsconfig.json, tsconfig.node.json
+- index.html (SEO-optimized)
+- src/main.tsx, src/App.tsx, src/index.css
+- src/components/Header.tsx, Hero.tsx, Features.tsx, Products.tsx, Testimonials.tsx, Contact.tsx, Footer.tsx
+- src/components/Loading.tsx, ErrorBoundary.tsx
 
-1. **package.json** - Complete project configuration with ALL dependencies
-2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
-3. **tailwind.config.js** - Tailwind CSS configuration with custom theme
-4. **tsconfig.json** - TypeScript configuration
-5. **tsconfig.node.json** - Node TypeScript configuration
-6. **index.html** - Complete HTML with proper meta tags and SEO
-7. **src/main.tsx** - React entry point with error boundaries
-8. **src/App.tsx** - COMPLETE main App component with ALL sections
-9. **src/index.css** - Global styles with Tailwind and custom CSS
-10. **src/components/Header.tsx** - Complete navigation with mobile menu
-11. **src/components/Hero.tsx** - Hero section with compelling content
-12. **src/components/Features.tsx** - Features/benefits section
-13. **src/components/Products.tsx** - Product showcase with grid layout
-14. **src/components/Testimonials.tsx** - Customer testimonials section
-15. **src/components/Contact.tsx** - Contact form with validation
-16. **src/components/Footer.tsx** - Complete footer with links
-17. **src/components/Loading.tsx** - Loading spinner component
-18. **src/components/ErrorBoundary.tsx** - Error boundary component
+🎯 CONTENT: Real business names, professional copywriting, realistic products, customer testimonials, proper contact info, high-quality images, social media integration.
 
-🎯 CONTENT REQUIREMENTS:
-- Use REAL business names and professional copywriting
-- Include realistic product descriptions and pricing
-- Add customer testimonials with real names and roles
-- Include proper contact information and addresses
-- Use high-quality Unsplash image URLs
-- Add social media integration
-- Include call-to-action buttons throughout
-
-🔧 TECHNICAL REQUIREMENTS:
+🔧 TECHNICAL:
 - TypeScript strict mode with proper types
 - ESLint configuration for code quality
 - Prettier formatting configuration
