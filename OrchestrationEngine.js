@@ -1,434 +1,575 @@
 import { getStackConfig } from './stackConfigs.js';
+import { v4 as uuidv4 } from 'uuid';
 
 export class OrchestrationEngine {
-  constructor(stackId, askClaudeFunction) {
-    const config = getStackConfig(stackId);
-    if (!config) {
-      throw new Error(`Stack configuration not found: ${stackId}`);
-    }
-    this.stackConfig = config;
-    this.askClaude = askClaudeFunction; // Inject Claude function from backend
-    this.projectPlan = null;
-    this.generatedFiles = {};
-    this.currentStep = 0;
-    this.errors = [];
-    this.totalTokensUsed = 0; // Track tokens across all Claude calls
+  constructor(sessionId = null) {
+    this.sessionId = sessionId || uuidv4();
+    this.session = {
+      sessionId: this.sessionId,
+      history: [],
+      currentStep: 0,
+      totalSteps: 6,
+      projectType: null,
+      featureToggles: {},
+      generatedFiles: {},
+      errors: [],
+      warnings: [],
+      totalTokensUsed: 0
+    };
   }
-  
 
-  // Helper method to track tokens automatically
-  async askClaudeWithTracking(prompt, maxTokens = 2048) {
-    const result = await this.askClaude(prompt, maxTokens);
-    this.totalTokensUsed += result.tokensUsed || 0;
-    console.log(`📊 Claude call tokens: ${result.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
+  // Enhanced Claude call with session history and context
+  async askClaudeWithSession(prompt, maxTokens = 2048, context = {}) {
+    const sessionContext = this.buildSessionContext(context);
+    const enhancedPrompt = this.enhancePromptWithHistory(prompt, sessionContext);
+    
+    const result = await this.askClaude(enhancedPrompt, maxTokens);
+    
+    // Track in session history
+    this.session.history.push({
+      timestamp: new Date().toISOString(),
+      prompt: enhancedPrompt,
+      response: result.output,
+      tokensUsed: result.tokensUsed || 0,
+      context: context,
+      step: this.session.currentStep
+    });
+    
+    this.session.totalTokensUsed += result.tokensUsed || 0;
+    console.log(`📊 Session ${this.sessionId} - Claude call: ${result.tokensUsed || 0} tokens (Total: ${this.session.totalTokensUsed})`);
+    
     return result;
   }
 
-  async generateProject(projectName, userPrompt, onProgress) {
+  // Build intelligent session context for Claude
+  buildSessionContext(additionalContext = {}) {
+    const context = {
+      sessionId: this.sessionId,
+      projectType: this.session.projectType,
+      featureToggles: this.session.featureToggles,
+      currentStep: this.session.currentStep,
+      previousSteps: this.session.history.slice(-3), // Last 3 interactions
+      projectPlan: this.session.projectPlan,
+      errors: this.session.errors,
+      warnings: this.session.warnings,
+      ...additionalContext
+    };
+    
+    return context;
+  }
+
+  // Enhance prompts with session history for intelligent chaining
+  enhancePromptWithHistory(prompt, context) {
+    let enhancedPrompt = prompt;
+    
+    // Add session context if available
+    if (context.projectType) {
+      enhancedPrompt = `[Project Type: ${context.projectType}]\n${enhancedPrompt}`;
+    }
+    
+    // Add recent history for context
+    if (context.previousSteps && context.previousSteps.length > 0) {
+      enhancedPrompt = `[Previous Context: ${context.previousSteps.map(step => 
+        `${step.step}: ${step.response.substring(0, 100)}...`
+      ).join(' | ')}]\n${enhancedPrompt}`;
+    }
+    
+    // Add feature toggles context
+    if (context.featureToggles && Object.keys(context.featureToggles).length > 0) {
+      const toggles = Object.entries(context.featureToggles || {})
+        .filter(([_, enabled]) => enabled)
+        .map(([feature, _]) => feature)
+        .join(', ');
+      enhancedPrompt = `[Enabled Features: ${toggles}]\n${enhancedPrompt}`;
+    }
+    
+    return enhancedPrompt;
+  }
+
+  // Modular Claude call with intent-based execution
+  async executeModularClaudeCall(intent, data, maxTokens = 2048) {
+    const prompt = this.getPromptForIntent(intent, data);
+    const sessionContext = this.buildSessionContext();
+    
+    console.log(`🤖 Claude request: ${intent} (${maxTokens} max tokens)`);
+    
+    const result = await this.askClaudeWithSession(prompt, maxTokens);
+    
+    console.log(`✅ Claude responded: ${result.output.length} chars, ${result.tokens} tokens`);
+    
+    return result;
+  }
+
+  // Intent-based prompt templates
+  getAnalyzePrompt(data) {
+    return `Analyze this project request and determine the optimal project type and structure.
+
+User Request: "${data.userPrompt}"
+
+Return the project analysis as JSON:
+{
+  "projectType": "landing|dashboard|ecommerce|portfolio|crm",
+  "description": "Brief project description",
+  "pages": [
+    {"name": "HomePage", "path": "/", "description": "Main page"}
+  ],
+  "components": [
+    {"name": "Navbar", "description": "Navigation component"}
+  ],
+  "featureToggles": {
+    "darkMode": false,
+    "authentication": false,
+    "chatbot": false,
+    "analytics": true,
+    "responsive": true
+  }
+}`;
+  }
+
+  getPlanPrompt(data) {
+    const featureToggles = data.featureToggles || {};
+    const enabledFeatures = Object.entries(featureToggles)
+      .filter(([_, enabled]) => enabled)
+      .map(([feature]) => feature)
+      .join(', ');
+
+    return `Plan the technical structure for a ${data.projectType} project.
+
+Project: ${data.projectName}
+Description: ${data.description}
+Enabled Features: ${enabledFeatures}
+
+Return the configuration files. You can return them as JSON or as text with code blocks:
+
+1. package.json with dependencies
+2. vite.config.ts for build setup
+3. tailwind.config.js for styling
+4. tsconfig.json for TypeScript
+5. index.html entry point
+6. src/main.tsx React entry
+7. src/App.tsx main component
+8. src/index.css with Tailwind imports`;
+  }
+
+  getGeneratePrompt(data) {
+    const featureToggles = data.featureToggles || {};
+    const enabledFeatures = Object.entries(featureToggles)
+      .filter(([_, enabled]) => enabled)
+      .map(([feature]) => feature)
+      .join(', ');
+
+    return `Generate all components and pages for this ${data.projectType} project.
+
+Project: ${data.projectName}
+Description: ${data.description}
+Enabled Features: ${enabledFeatures}
+
+Generate ALL components dynamically based on the project requirements:
+
+1. **Navbar Component** - Create a modern navigation bar with:
+   - Dynamic logo/brand name based on project
+   - Navigation links based on pages
+   - Mobile responsive menu
+   - Modern styling with animations
+
+2. **Hero Section** - Create a compelling hero section with:
+   - Dynamic headline based on project type
+   - Relevant call-to-action buttons
+   - Background styling appropriate for project
+   - Responsive design
+
+3. **Footer Component** - Create a professional footer with:
+   - Dynamic company/brand information
+   - Relevant links based on project
+   - Social media integration if applicable
+   - Modern styling
+
+4. **All Other Components** - Generate any additional components needed:
+   - Feature cards with dynamic content
+   - Product showcases if ecommerce
+   - Contact forms if needed
+   - Newsletter signup if enabled
+   - Chatbot integration if enabled
+
+IMPORTANT: 
+- DO NOT use hardcoded content
+- Make everything dynamic based on project type and requirements
+- Use modern React patterns with TypeScript
+- Include Framer Motion animations
+- Use Tailwind CSS for styling
+- Make all text content relevant to the specific project
+
+Return the complete component code with no hardcoded placeholders.`;
+  }
+
+  getValidatePrompt(data) {
+    const files = data.files || {};
+    const fileList = Object.keys(files).join(', ');
+    
+    return `Validate this ${data.projectType} project for production readiness.
+
+Project Files: ${fileList}
+
+Check for:
+1. Code quality and best practices
+2. TypeScript type safety
+3. Accessibility compliance
+4. Performance optimization
+5. Security considerations
+6. Build configuration
+7. Feature implementation
+
+Return the validation results as JSON:
+
+{
+  "score": 85,
+  "passed": true,
+  "issues": [
+    { "severity": "error|warning", "message": "...", "file": "...", "line": 123 }
+  ],
+  "recommendations": [
+    "list of improvements"
+  ]
+}`;
+  }
+
+  getComposePrompt(data) {
+    const featureToggles = data.featureToggles || {};
+    const enabledFeatures = Object.entries(featureToggles)
+      .filter(([_, enabled]) => enabled)
+      .map(([feature]) => feature)
+      .join(', ');
+
+    return `Create comprehensive documentation for this ${data.projectType} project.
+
+Project: ${data.projectName}
+Description: ${data.description}
+Enabled Features: ${enabledFeatures}
+
+Generate:
+
+1. **README.md** - Complete project documentation with:
+   - Project overview specific to the project type
+   - Installation instructions
+   - Usage examples
+   - Technology stack details
+   - Deployment instructions
+
+2. **Additional Documentation** - Any other docs needed:
+   - API documentation if applicable
+   - Component documentation
+   - Style guide if needed
+
+Make all content dynamic and relevant to the specific project type and features.`;
+  }
+
+  getImprovePrompt(data) {
+    const issues = data.issues || [];
+    const issuesJson = JSON.stringify(issues);
+    
+    return `Improve this ${data.projectType} project based on validation issues.
+
+Issues: ${issuesJson}
+
+Improve the code to:
+1. Fix all validation errors
+2. Implement missing features
+3. Enhance code quality
+4. Optimize performance
+5. Improve accessibility
+
+IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any explanations, markdown, or text before or after the JSON.
+
+{
+  "index.html": "improved HTML content",
+  "src/App.tsx": "improved React component",
+  "src/components/ErrorBoundary.tsx": "error boundary component"
+}`;
+  }
+
+  async generateProject(userPrompt, projectName = 'generated-project') {
+    const startTime = Date.now();
+    this.session.currentStep = 0;
+    this.session.totalSteps = 6;
+    
+    console.log(`🚀 Starting project generation: ${projectName}`);
+    console.log(`📋 User Request: ${userPrompt}`);
+    
     try {
-      this.reset();
-      console.log('🚀 Starting step-by-step project generation...');
+      // Step 1: Analyze
+      this.updateProgress(5, '📋 Analyzing project requirements...');
+      const analyzeResult = await this.executeModularClaudeCall('analyze', { userPrompt, projectName }, 2048);
       
-      // 🎯 STEP 1: Generate Project Plan (JSON structure)
-      onProgress?.('📋 Generating project plan...', 5);
-      await this.generateProjectPlan(projectName, userPrompt);
-      
-      if (!this.projectPlan) {
-        throw new Error('Failed to generate project plan');
+      const analysis = this.parseJSON(analyzeResult.output);
+      if (!analysis) {
+        throw new Error('Failed to analyze project requirements');
       }
-
-      // ⚙️ STEP 2: Generate Config & Entry Files 
-      onProgress?.('⚙️ Creating config files...', 20);
-      await this.generateConfigFiles();
-
-      // 📄 STEP 3: Generate Pages (from dynamic plan)
-      onProgress?.('📄 Creating pages...', 40);
-      await this.generatePagesFromPlan();
-
-      // 🧩 STEP 4: Generate Components (from dynamic plan)
-      onProgress?.('🧩 Creating components...', 60);
-      await this.generateComponentsFromPlan();
-
-      // 📚 STEP 5: Generate Documentation
-      onProgress?.('📚 Creating documentation...', 80);
-      await this.generateDocumentation();
-
-      // ✅ STEP 6: Validate and finalize
-      onProgress?.('✅ Validating project...', 90);
-      const isValid = await this.validateProject();
-
-      onProgress?.('🎉 Project complete!', 100);
       
-      console.log(`🪙 Total tokens used in project generation: ${this.totalTokensUsed}`);
+      // Step 2: Plan
+      this.updateProgress(20, '⚙️ Planning project structure...');
+      const planResult = await this.executeModularClaudeCall('plan', { 
+        ...analysis, 
+        projectName, 
+        userPrompt 
+      }, 1536);
+      
+      // Step 3: Generate
+      this.updateProgress(40, '📄 Generating pages and components...');
+      const generateResult = await this.executeModularClaudeCall('generate', { 
+        ...analysis, 
+        projectName, 
+        userPrompt 
+      }, 1536);
+      
+      // Step 4: Compose
+      this.updateProgress(80, '📚 Creating documentation...');
+      const composeResult = await this.executeModularClaudeCall('compose', { 
+        ...analysis, 
+        projectName, 
+        userPrompt 
+      }, 1024);
+      
+      // Step 5: Validate
+      this.updateProgress(90, '✅ Validating project quality...');
+      const validateResult = await this.executeModularClaudeCall('validate', { 
+        ...analysis, 
+        projectName, 
+        userPrompt 
+      }, 1024);
+      
+      // Step 6: Improve
+      this.updateProgress(95, '🔧 Improving project quality...');
+      const improveResult = await this.executeModularClaudeCall('improve', { 
+        ...analysis, 
+        projectName, 
+        userPrompt 
+      }, 1024);
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`🎉 Project generation completed in ${(totalTime / 1000).toFixed(1)}s`);
       
       return {
         success: true,
-        files: this.generatedFiles,
-        errors: this.errors,
-        warnings: [],
-        buildable: isValid,
-        tokensUsed: this.totalTokensUsed // Return actual token usage
+        projectName,
+        files: this.extractAllFiles([planResult, generateResult, composeResult, improveResult]),
+        sessionId: this.session.sessionId,
+        totalTime: totalTime / 1000
       };
-
+      
     } catch (error) {
-      console.error('❌ Generation failed:', error);
+      console.error(`❌ Session ${this.session.sessionId} - Generation failed:`, error);
       return {
         success: false,
-        files: this.generatedFiles,
-        errors: [error instanceof Error ? error.message : 'Unknown error'],
-        warnings: [],
-        buildable: false,
-        tokensUsed: this.totalTokensUsed // Return tokens even on failure
+        error: error.message,
+        sessionId: this.session.sessionId
       };
     }
+  }
+
+  updateProgress(percentage, message) {
+    this.session.currentStep++;
+    const estimatedTime = this.calculateEstimatedTime();
+    console.log(`📊 Progress: ${percentage}% - ${message} (${estimatedTime}s remaining)`);
+  }
+
+  calculateEstimatedTime() {
+    const elapsedSteps = this.session.currentStep;
+    const totalSteps = this.session.totalSteps;
+    const averageTimePerStep = 30; // seconds
+    const remainingSteps = totalSteps - elapsedSteps;
+    return Math.round(remainingSteps * averageTimePerStep);
   }
 
   reset() {
-    this.projectPlan = null;
-    this.generatedFiles = {};
-    this.currentStep = 0;
-    this.errors = [];
-    this.totalTokensUsed = 0; // Reset token tracking
+    this.session.projectPlan = null;
+    this.session.generatedFiles = {};
+    this.session.currentStep = 0;
+    this.session.errors = [];
+    this.session.warnings = [];
+    this.session.totalTokensUsed = 0;
+    this.session.projectType = null;
+    this.session.featureToggles = {};
+    this.session.validationResults = null;
+    // Keep history for session continuity
   }
 
-  // 🎯 STEP 1: Generate Project Plan (JSON structure)
-  async generateProjectPlan(projectName, userPrompt) {
-    console.log('📋 Generating structured project plan...');
-    
-    const prompt = `Analyze this project request and create a detailed plan.
-
-User Request: "${userPrompt}"
-Project Name: "${projectName}"
-
-Based on the user's specific request, determine what pages and components are actually needed for this project.
-
-EXAMPLES of different project types:
-- Portfolio website → Home, About, Projects, Contact pages + Navbar, Hero, ProjectCard, Footer components
-- E-commerce site → Home, Products, Cart, Checkout pages + Navbar, ProductCard, CartItem components  
-- Travel agency → Home, Destinations, Booking, Contact pages + Hero, DestinationCard, BookingForm components
-- Restaurant website → Home, Menu, About, Contact pages + Navbar, MenuItem, Gallery components
-- Dashboard app → Dashboard, Analytics, Settings pages + Sidebar, Chart, DataTable components
-
-Analyze "${userPrompt}" and return the appropriate plan as JSON:
-
-{
-  "projectName": "${projectName}",
-  "description": "${userPrompt}",
-  "pages": [
-    { "name": "PageName", "filename": "PageName.jsx", "path": "/route", "description": "what this page does" }
-  ],
-  "components": [
-    { "name": "ComponentName", "filename": "ComponentName.jsx", "description": "what this component does" }
-  ],
-  "features": [
-    "list of key features this project should have"
-  ]
-}
-
-CRITICAL: 
-- Analyze the SPECIFIC user request, don't use generic examples
-- Return ONLY valid JSON, no explanations or markdown
-- Make sure pages and components match what the user actually requested`;
-
-    try {
-      const claudeResult = await this.askClaude(prompt, 1024);
-      
-      // Handle both direct string and object response formats
-      const response = typeof claudeResult === 'string' ? claudeResult : claudeResult.output;
-      const tokensUsed = typeof claudeResult === 'object' ? (claudeResult.tokensUsed || 0) : 0;
-      
-      this.totalTokensUsed += tokensUsed;
-      console.log(`📊 Project plan tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
-      
-      console.log('🔍 Claude raw response:', response.substring(0, 500) + '...');
-      
-      // Try multiple JSON extraction methods
-      let jsonStr = null;
-      
-      // Method 1: Look for JSON blocks
-      let match = response.match(/```json\s*([\s\S]*?)\s*```/);
-      if (match) {
-        jsonStr = match[1];
-        console.log('📄 Found JSON in code block');
-      }
-      
-      // Method 2: Look for plain JSON object
-      if (!jsonStr) {
-        match = response.match(/\{[\s\S]*\}/);
-        if (match) {
-          jsonStr = match[0];
-          console.log('📄 Found JSON object');
-        }
-      }
-      
-      // Method 3: Try to clean and extract JSON
-      if (!jsonStr) {
-        // Remove common Claude explanations
-        const cleaned = response
-          .replace(/^.*?(?=\{)/s, '') // Remove everything before first {
-          .replace(/\}.*$/s, '}')     // Remove everything after last }
-          .trim();
-        
-        if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
-          jsonStr = cleaned;
-          console.log('📄 Found JSON after cleaning');
-        }
-      }
-      
-      if (!jsonStr) {
-        console.log('❌ No JSON found in response. Full response:', response);
-        throw new Error("Claude did not return valid JSON plan");
-      }
-
-      console.log('🧹 Extracted JSON:', jsonStr.substring(0, 200) + '...');
-      const plan = JSON.parse(jsonStr);
-      
-      this.projectPlan = {
-        stackId: this.stackConfig.id,
-        projectName,
-        description: userPrompt,
-        pages: plan.pages || [],
-        components: plan.components || [],
-        features: plan.features || []
-      };
-
-      console.log("✅ Project plan generated:", this.projectPlan);
-      
-    } catch (error) {
-      console.error('❌ Failed to generate project plan:', error);
-      console.log('🔄 Generating fallback plan...');
-      
-      // Generate a fallback plan based on the user prompt
-      this.projectPlan = this.generateFallbackPlan(projectName, userPrompt);
-      console.log('✅ Fallback plan generated:', this.projectPlan);
-    }
-  }
-
-  // Generate a sensible fallback plan when Claude fails
-  generateFallbackPlan(projectName, userPrompt) {
-    const prompt = userPrompt.toLowerCase();
-    
-    // Determine project type from keywords
-    let pages = [];
-    let components = [];
-    let features = [];
-    
-    if (prompt.includes('portfolio')) {
-      pages = [
-        { name: 'Home', filename: 'Home.jsx', path: '/', description: 'Portfolio landing page' },
-        { name: 'About', filename: 'About.jsx', path: '/about', description: 'About me section' },
-        { name: 'Projects', filename: 'Projects.jsx', path: '/projects', description: 'Project showcase' },
-        { name: 'Contact', filename: 'Contact.jsx', path: '/contact', description: 'Contact information' }
-      ];
-      components = [
-        { name: 'Navbar', filename: 'Navbar.jsx', description: 'Navigation bar' },
-        { name: 'Hero', filename: 'Hero.jsx', description: 'Hero section' },
-        { name: 'ProjectCard', filename: 'ProjectCard.jsx', description: 'Project display card' },
-        { name: 'Footer', filename: 'Footer.jsx', description: 'Site footer' }
-      ];
-      features = ['Portfolio showcase', 'Responsive design', 'Contact form', 'Modern UI'];
-    } else if (prompt.includes('dashboard')) {
-      pages = [
-        { name: 'Dashboard', filename: 'Dashboard.jsx', path: '/', description: 'Main dashboard' },
-        { name: 'Analytics', filename: 'Analytics.jsx', path: '/analytics', description: 'Analytics page' },
-        { name: 'Settings', filename: 'Settings.jsx', path: '/settings', description: 'Settings page' }
-      ];
-      components = [
-        { name: 'Sidebar', filename: 'Sidebar.jsx', description: 'Navigation sidebar' },
-        { name: 'Chart', filename: 'Chart.jsx', description: 'Data visualization' },
-        { name: 'DataTable', filename: 'DataTable.jsx', description: 'Data table' }
-      ];
-      features = ['Data visualization', 'Real-time updates', 'User management'];
-    } else if (prompt.includes('landing') || prompt.includes('sports') || prompt.includes('travel') || prompt.includes('business')) {
-      // Generic landing page
-      pages = [
-        { name: 'Home', filename: 'Home.jsx', path: '/', description: 'Main landing page' }
-      ];
-      components = [
-        { name: 'Navbar', filename: 'Navbar.jsx', description: 'Navigation header' },
-        { name: 'Hero', filename: 'Hero.jsx', description: 'Hero section with CTA' },
-        { name: 'Features', filename: 'Features.jsx', description: 'Features showcase' },
-        { name: 'Footer', filename: 'Footer.jsx', description: 'Site footer' }
-      ];
-      features = ['Hero section', 'Call-to-action', 'Responsive design', 'Modern styling'];
-    } else {
-      // Default fallback
-      pages = [
-        { name: 'Home', filename: 'Home.jsx', path: '/', description: 'Main page' }
-      ];
-      components = [
-        { name: 'Navbar', filename: 'Navbar.jsx', description: 'Navigation' },
-        { name: 'Footer', filename: 'Footer.jsx', description: 'Footer' }
-      ];
-      features = ['Responsive design', 'Modern UI', 'Tailwind CSS'];
-    }
-    
+  // Session management methods
+  getSessionInfo() {
     return {
-      stackId: this.stackConfig.id,
-      projectName,
-      description: userPrompt,
-      pages,
-      components,
-      features
-    }
+      sessionId: this.sessionId,
+      createdAt: this.session.createdAt,
+      projectType: this.session.projectType,
+      currentStep: this.session.currentStep,
+      totalTokensUsed: this.session.totalTokensUsed,
+      historyLength: this.session.history.length,
+      errors: this.session.errors.length,
+      warnings: this.session.warnings.length
+    };
   }
 
-  // Legacy method for compatibility  
-  async analyzeProject(projectName, userPrompt) {
-    return await this.generateProjectPlan(projectName, userPrompt);
+  getSessionHistory() {
+    return this.session.history;
   }
 
-  async generateScaffold() {
-    // Generate package.json
-    const packageJson = { ...this.stackConfig.templates.packageJson };
-    packageJson.name = this.projectPlan.projectName.toLowerCase().replace(/\s+/g, '-');
-    packageJson.description = this.projectPlan.description;
-    
-    this.generatedFiles['package.json'] = JSON.stringify(packageJson, null, 2);
-
-    // Generate config files
-    Object.entries(this.stackConfig.templates.configFiles).forEach(([fileName, content]) => {
-      this.generatedFiles[fileName] = this.interpolateTemplate(content);
-    });
-
-    // Generate base files
-    Object.entries(this.stackConfig.templates.baseFiles).forEach(([fileName, content]) => {
-      this.generatedFiles[fileName] = this.interpolateTemplate(content);
-    });
-
-    console.log('🏗️ Scaffold generated:', Object.keys(this.generatedFiles));
+  // Legacy compatibility methods
+  async askClaudeWithTracking(prompt, maxTokens = 2048) {
+    return await this.askClaudeWithSession(prompt, maxTokens);
   }
 
-  async executeStep(step) {
+  // Helper methods for JSON parsing and code cleaning
+  parseJSON(text) {
     try {
-      switch (step.promptType) {
-        case 'scaffold':
-          await this.generateMainComponent(step);
-          break;
-        case 'page':
-          await this.generatePages(step);
-          break;
-        case 'component':
-          await this.generateComponents(step);
-          break;
-        case 'readme':
-          await this.generateReadme(step);
-          break;
-        default:
-          console.warn(`Unknown step type: ${step.promptType}`);
-      }
+      // First, try to parse as-is
+      return JSON.parse(text);
     } catch (error) {
-      const errorMsg = `Step ${step.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      this.errors.push(errorMsg);
-      console.error(errorMsg);
+      console.log(`❌ JSON parsing failed: ${error.message}`);
+      console.log(`🔍 Raw text: ${text.substring(0, 1000)}`);
+      console.log(`🔍 Text length: ${text.length}`);
+      console.log(`🔍 First 100 chars: ${text.substring(0, 100)}`);
+      
+      // Try to find JSON in the text
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const jsonText = jsonMatch[0];
+          console.log(`🔄 Found JSON in text, attempting to parse...`);
+          return JSON.parse(jsonText);
+        } catch (jsonError) {
+          console.log(`❌ JSON extraction failed: ${jsonError.message}`);
+        }
+      }
+      
+      // Try to complete incomplete JSON
+      let cleanedText = text;
+      
+      // Remove explanatory text before JSON
+      const jsonStart = text.indexOf('{');
+      if (jsonStart > 0) {
+        cleanedText = text.substring(jsonStart);
+        console.log(`🔄 Removed explanatory text, attempting to parse...`);
+        try {
+          return JSON.parse(cleanedText);
+        } catch (cleanError) {
+          console.log(`❌ Cleaned JSON parsing failed: ${cleanError.message}`);
+        }
+      }
+      
+      // Try to fix common JSON issues
+      try {
+        // Fix trailing commas
+        cleanedText = cleanedText.replace(/,(\s*[}\]])/g, '$1');
+        // Fix missing quotes around property names
+        cleanedText = cleanedText.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+        // Fix single quotes to double quotes
+        cleanedText = cleanedText.replace(/'/g, '"');
+        
+        console.log(`🔄 Attempting fallback JSON parsing...`);
+        return JSON.parse(cleanedText);
+      } catch (fallbackError) {
+        console.log(`❌ Fallback parsing also failed: ${fallbackError.message}`);
+        throw new Error(`Failed to parse JSON: ${error.message}`);
+      }
     }
   }
 
-  async generateMainComponent(step) {
-    const prompt = this.stackConfig.prompts.scaffold
-      .replace('{projectName}', this.projectPlan.projectName)
-      .replace('{description}', this.projectPlan.description)
-      .replace('{pages}', JSON.stringify(this.projectPlan.pages));
-
-    const claudeResponse = await this.askClaude(prompt, 3072);
-    this.totalTokensUsed += claudeResponse.tokensUsed || 0;
-    console.log(`📊 Config generation tokens: ${claudeResponse.tokensUsed || 0} (Total: ${this.totalTokensUsed})`);
-    const { output: code } = claudeResponse;
-    const cleanCode = this.cleanCodeResponse(code);
+  cleanCodeResponse(response) {
+    if (!response) return '';
     
-    this.generatedFiles[step.outputPath] = cleanCode;
-    console.log(`✅ Generated main component: ${step.outputPath}`);
+    // Remove markdown code blocks
+    let cleaned = response.replace(/```(tsx?|jsx?|typescript|javascript)?\s*/gi, '').replace(/```\s*/g, '');
+    
+    // Remove common Claude explanations
+    cleaned = cleaned.replace(/^Here's the.*$/gm, '');
+    cleaned = cleaned.replace(/^I'll create.*$/gm, '');
+    cleaned = cleaned.replace(/^This will.*$/gm, '');
+    cleaned = cleaned.replace(/^The component.*$/gm, '');
+    
+    // Remove file path comments
+    cleaned = cleaned.replace(/^\/\/.*$/gm, '');
+    cleaned = cleaned.replace(/^\/\*.*?\*\//gms, '');
+    
+    return cleaned.trim();
   }
 
-  async generatePages(step) {
-    if (!this.projectPlan?.pages.length) return;
+  interpolateTemplate(template) {
+    return template
+      .replace(/{projectName}/g, this.session.projectPlan?.projectName || 'Project')
+      .replace(/{description}/g, this.session.projectPlan?.description || '')
+      .replace(/{projectType}/g, this.session.projectType || 'app');
+  }
 
-    for (const page of this.projectPlan.pages) {
-      const prompt = this.stackConfig.prompts.page
-        .replace('{name}', page.name)
-        .replace('{description}', page.description)
-        .replace('{path}', page.path)
-        .replace('{components}', page.components?.join(', ') || '')
-        .replace('{projectContext}', this.projectPlan.description);
+  getPageFileName(pageName) {
+    // Convert page name to kebab-case filename
+    return pageName
+      .replace(/([A-Z])/g, '-$1')
+      .toLowerCase()
+      .replace(/^-/, '')
+      .replace(/\s+/g, '-') + '.tsx';
+  }
 
-      try {
-        // Add file extension enforcement
-        const enhancedPrompt = `CRITICAL: This is a TypeScript React project. Use .tsx extension for ALL React components.
+  getComponentFileName(componentName) {
+    // Convert component name to PascalCase filename
+    return this.toPascalCase(componentName) + '.tsx';
+  }
 
-${prompt}
+  toPascalCase(str) {
+    return str
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .replace(/\s+/g, '');
+  }
 
-IMPORTANT: Generate TypeScript React component code (.tsx) only. Be consistent with TypeScript throughout.`;
-
-        const claudeResult = await this.askClaude(enhancedPrompt, 2048);
-        const tokensUsed = claudeResult.tokensUsed || 0;
-        this.totalTokensUsed += tokensUsed;
-        console.log(`📊 Page generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
-        const { output: code } = claudeResult;
-        const cleanCode = this.cleanCodeResponse(code);
-        
-        const fileName = this.getPageFileName(page.name);
-        const filePath = `${step.outputPath}${fileName}`;
-        
-        this.generatedFiles[filePath] = cleanCode;
-        console.log(`✅ Generated page: ${filePath}`);
-      } catch (error) {
-        console.error(`Failed to generate page ${page.name}:`, error);
+  extractFilesFromText(text) {
+    const files = {};
+    
+    // Extract code blocks with file paths
+    const codeBlockRegex = /```(?:(\w+):([^\n]+)\n)?([\s\S]*?)```/g;
+    let match;
+    
+    while ((match = codeBlockRegex.exec(text)) !== null) {
+      const [, language, filePath, content] = match;
+      if (filePath) {
+        files[filePath.trim()] = content.trim();
+      } else if (language && ['tsx', 'ts', 'jsx', 'js', 'html', 'css', 'json'].includes(language)) {
+        // If no file path but has language, try to infer from content
+        if (language === 'json' && content.includes('"name"')) {
+          files['package.json'] = content.trim();
+        } else if (language === 'tsx' || language === 'jsx') {
+          files['src/App.tsx'] = content.trim();
+        } else if (language === 'html') {
+          files['index.html'] = content.trim();
+        }
       }
     }
-  }
-
-  async generateComponents(step) {
-    if (!this.projectPlan?.components.length) return;
-
-    for (const component of this.projectPlan.components) {
-      const prompt = this.stackConfig.prompts.component
-        .replace('{name}', component.name)
-        .replace('{type}', component.type)
-        .replace('{description}', component.description)
-        .replace('{props}', component.props?.join(', ') || 'none');
-
-      try {
-        const claudeResult = await this.askClaude(prompt, 2048);
-        const tokensUsed = claudeResult.tokensUsed || 0;
-        this.totalTokensUsed += tokensUsed;
-        console.log(`📊 Page generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
-        const { output: code } = claudeResult;
-        const cleanCode = this.cleanCodeResponse(code);
-        
-        const fileName = this.getComponentFileName(component.name);
-        const filePath = `${step.outputPath}${fileName}`;
-        
-        this.generatedFiles[filePath] = cleanCode;
-        console.log(`✅ Generated component: ${filePath}`);
-      } catch (error) {
-        console.error(`Failed to generate component ${component.name}:`, error);
+    
+    // Also look for file paths in the text
+    const filePathRegex = /([a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json))/g;
+    while ((match = filePathRegex.exec(text)) !== null) {
+      const filePath = match[1];
+      // Extract content after the file path
+      const afterPath = text.substring(match.index + filePath.length);
+      const nextFileMatch = afterPath.match(/^[a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json)/);
+      const endIndex = nextFileMatch ? afterPath.indexOf(nextFileMatch[0]) : afterPath.length;
+      const content = afterPath.substring(0, endIndex).trim();
+      
+      if (content && !files[filePath]) {
+        files[filePath] = content;
       }
     }
+    
+    return files;
   }
 
-  async generateReadme(step) {
-    const prompt = this.stackConfig.prompts.readme
-      .replace('{projectName}', this.projectPlan.projectName)
-      .replace('{description}', this.projectPlan.description);
-
-    const claudeResult = await this.askClaude(prompt, 2048);
-    const tokensUsed = claudeResult.tokensUsed || 0;
-    this.totalTokensUsed += tokensUsed;
-    console.log(`📊 Documentation generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
-    const { output: readme } = claudeResult;
-    this.generatedFiles[step.outputPath] = readme;
-    console.log(`✅ Generated README: ${step.outputPath}`);
-  }
-
+  // Enhanced validation methods
   async validateProject() {
     console.log('🧪 Starting comprehensive project validation...');
     
     // 1. Check for required files
     const requiredFiles = this.getRequiredFiles();
-    const missingFiles = requiredFiles.filter(file => !this.generatedFiles[file]);
+    const missingFiles = requiredFiles.filter(file => !this.session.generatedFiles[file]);
     
     if (missingFiles.length > 0) {
-      this.errors.push(`Missing required files: ${missingFiles.join(', ')}`);
+      this.session.errors.push(`Missing required files: ${missingFiles.join(', ')}`);
       return false;
     }
     console.log('✅ All required files present');
@@ -488,25 +629,25 @@ IMPORTANT: Generate TypeScript React component code (.tsx) only. Be consistent w
           'src/App.tsx',
           'src/index.css'
         ];
-      case 'vue':
+      case 'nextjs':
         return [
           ...baseFiles,
-          'vite.config.ts',
+          'next.config.js',
+          'tsconfig.json',
           'tailwind.config.js',
-          'index.html',
-          'src/main.ts',
-          'src/App.vue',
-          'src/style.css'
+          'app/layout.tsx',
+          'app/page.tsx',
+          'app/globals.css'
         ];
-      case 'svelte':
+      case 'remix':
         return [
           ...baseFiles,
-          'svelte.config.js',
-          'vite.config.ts',
+          'remix.config.js',
+          'tsconfig.json',
           'tailwind.config.js',
-          'src/app.html',
-          'src/routes/+layout.svelte',
-          'src/app.css'
+          'app/root.tsx',
+          'app/routes/_index.tsx',
+          'app/tailwind.css'
         ];
       default:
         return baseFiles;
@@ -515,29 +656,34 @@ IMPORTANT: Generate TypeScript React component code (.tsx) only. Be consistent w
 
   async validatePackageJson() {
     try {
-      const packageJson = JSON.parse(this.generatedFiles['package.json']);
+      const packageJson = JSON.parse(this.session.generatedFiles['package.json']);
       
       // Check required fields
       const requiredFields = ['name', 'version', 'scripts', 'dependencies', 'devDependencies'];
       for (const field of requiredFields) {
         if (!packageJson[field]) {
-          this.errors.push(`package.json missing required field: ${field}`);
+          this.session.errors.push(`Missing required field in package.json: ${field}`);
           return false;
         }
       }
-
-      // Check required scripts
-      const requiredScripts = ['dev', 'build'];
-      for (const script of requiredScripts) {
-        if (!packageJson.scripts[script]) {
-          this.errors.push(`package.json missing required script: ${script}`);
-          return false;
+      
+      // Check for essential dependencies based on framework
+      const essentialDeps = {
+        react: ['react', 'react-dom'],
+        nextjs: ['next', 'react', 'react-dom'],
+        remix: ['@remix-run/react', 'react', 'react-dom']
+      };
+      
+      const frameworkDeps = essentialDeps[this.stackConfig.framework] || [];
+      for (const dep of frameworkDeps) {
+        if (!packageJson.dependencies[dep] && !packageJson.devDependencies[dep]) {
+          this.session.warnings.push(`Missing essential dependency: ${dep}`);
         }
       }
-
+      
       return true;
     } catch (error) {
-      this.errors.push('Invalid package.json format');
+      this.session.errors.push(`Invalid package.json: ${error.message}`);
       return false;
     }
   }
@@ -545,402 +691,233 @@ IMPORTANT: Generate TypeScript React component code (.tsx) only. Be consistent w
   async validateConfigFiles() {
     const configFiles = {
       'vite.config.ts': this.validateViteConfig,
+      'next.config.js': this.validateNextConfig,
+      'remix.config.js': this.validateRemixConfig,
       'tailwind.config.js': this.validateTailwindConfig,
       'tsconfig.json': this.validateTsConfig
     };
-
-    for (const [filename, validator] of Object.entries(configFiles)) {
-      if (this.generatedFiles[filename]) {
+    
+    for (const [file, validator] of Object.entries(configFiles)) {
+      if (this.session.generatedFiles[file]) {
         try {
-          if (!validator.call(this, this.generatedFiles[filename])) {
-            this.errors.push(`Invalid configuration in ${filename}`);
+          const isValid = validator.call(this, this.session.generatedFiles[file]);
+          if (!isValid) {
+            this.session.errors.push(`Invalid ${file} configuration`);
             return false;
           }
         } catch (error) {
-          this.errors.push(`Syntax error in ${filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          this.session.errors.push(`Error validating ${file}: ${error.message}`);
           return false;
         }
       }
     }
-
+    
     return true;
   }
 
   validateViteConfig(content) {
-    return content.includes('defineConfig') && content.includes('plugins');
+    return content.includes('defineConfig') && content.includes('@vitejs/plugin-react');
+  }
+
+  validateNextConfig(content) {
+    return content.includes('nextConfig') && content.includes('experimental');
+  }
+
+  validateRemixConfig(content) {
+    return content.includes('AppConfig') && content.includes('tailwind: true');
   }
 
   validateTailwindConfig(content) {
-    return content.includes('content') && content.includes('theme') && content.includes('plugins');
+    return content.includes('tailwindcss') && content.includes('content:');
   }
 
   validateTsConfig(content) {
     try {
       const config = JSON.parse(content);
-      return config.compilerOptions && config.compilerOptions.target && config.include;
+      return config.compilerOptions && config.compilerOptions.target;
     } catch {
       return false;
     }
   }
 
   async validateCodeSyntax() {
-    const codeFiles = Object.keys(this.generatedFiles).filter(path => 
-      path.endsWith('.tsx') || path.endsWith('.ts') || 
-      path.endsWith('.jsx') || path.endsWith('.js') ||
-      path.endsWith('.vue') || path.endsWith('.svelte')
-    );
-
-    for (const filePath of codeFiles) {
-      const content = this.generatedFiles[filePath];
-      
+    // Basic syntax validation - in production, you'd use actual TypeScript compiler
+    const tsxFiles = Object.entries(this.session.generatedFiles)
+      .filter(([path]) => path.endsWith('.tsx') || path.endsWith('.ts'));
+    
+    for (const [filePath, content] of tsxFiles) {
       if (!this.validateBasicSyntax(content, filePath)) {
         return false;
       }
     }
-
+    
     return true;
   }
 
   validateBasicSyntax(content, filePath) {
-    // Check for balanced brackets
-    const brackets = { '(': ')', '[': ']', '{': '}' };
-    const stack = [];
+    // Basic checks for common syntax errors
+    const checks = [
+      { pattern: /import.*from.*['"]/, message: 'Invalid import statement' },
+      { pattern: /export.*default/, message: 'Missing default export' },
+      { pattern: /function.*\(.*\)/, message: 'Invalid function declaration' },
+      { pattern: /const.*=.*=>/, message: 'Invalid arrow function' }
+    ];
     
-    for (const char of content) {
-      if (brackets[char]) {
-        stack.push(brackets[char]);
-      } else if (Object.values(brackets).includes(char)) {
-        if (stack.pop() !== char) {
-          this.errors.push(`Unbalanced brackets in ${filePath}`);
-          return false;
-        }
+    for (const check of checks) {
+      if (!check.pattern.test(content)) {
+        this.session.warnings.push(`Potential syntax issue in ${filePath}: ${check.message}`);
       }
     }
-
-    if (stack.length > 0) {
-      this.errors.push(`Unclosed brackets in ${filePath}`);
-      return false;
-    }
-
+    
     return true;
   }
 
   async validateImportsExports() {
-    // Simplified validation for backend
+    // Check for circular dependencies and missing imports
+    const imports = [];
+    const exports = [];
+    
+    for (const [filePath, content] of Object.entries(this.session.generatedFiles)) {
+      if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
+        // Extract imports and exports (simplified)
+        const importMatches = content.match(/import.*from.*['"]([^'"]+)['"]/g);
+        const exportMatches = content.match(/export.*from.*['"]([^'"]+)['"]/g);
+        
+        if (importMatches) imports.push(...importMatches);
+        if (exportMatches) exports.push(...exportMatches);
+      }
+    }
+    
+    // Basic validation
+    if (imports.length === 0) {
+      this.session.warnings.push('No imports found - check for missing dependencies');
+    }
+    
     return true;
   }
 
   async validateProjectStructure() {
-    const hasSourceFiles = Object.keys(this.generatedFiles).some(path => path.startsWith('src/'));
-    if (!hasSourceFiles) {
-      this.errors.push('Missing src/ directory structure');
-      return false;
+    // Check for proper directory structure
+    const hasComponents = Object.keys(this.session.generatedFiles).some(f => f.includes('components/'));
+    const hasPages = Object.keys(this.session.generatedFiles).some(f => f.includes('pages/') || f.includes('routes/'));
+    
+    if (!hasComponents) {
+      this.session.warnings.push('No components directory found');
     }
+    
+    if (!hasPages) {
+      this.session.warnings.push('No pages/routes directory found');
+    }
+    
     return true;
   }
 
   async validateDeploymentReadiness() {
-    const packageJson = JSON.parse(this.generatedFiles['package.json']);
+    // Check for deployment-specific requirements
+    const hasBuildScript = this.session.generatedFiles['package.json']?.includes('"build"');
+    const hasStartScript = this.session.generatedFiles['package.json']?.includes('"start"');
     
-    if (!packageJson.scripts?.build) {
-      this.errors.push('Missing build script in package.json');
+    if (!hasBuildScript) {
+      this.session.errors.push('Missing build script in package.json');
       return false;
     }
-
-    if (!this.generatedFiles['index.html']) {
-      this.errors.push('Missing index.html');
-      return false;
+    
+    if (!hasStartScript) {
+      this.session.warnings.push('Missing start script in package.json');
     }
-
+    
     return true;
   }
 
-  parseJSON(text) {
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-      return JSON.parse(text);
-    } catch {
-      return {
-        pages: [{ name: 'Home', path: '/', description: 'Main page', filename: 'Home.tsx' }],
-        components: [{ name: 'Header', type: 'layout', description: 'Navigation header', filename: 'Header.tsx' }],
-        features: ['responsive design']
-      };
-    }
-  }
-
-  cleanCodeResponse(response) {
-    let cleaned = response.replace(/```[\w]*\n([\s\S]*?)\n```/g, '$1');
-    cleaned = cleaned.replace(/^Here's the.*$/gm, '');
-    cleaned = cleaned.replace(/^I've created.*$/gm, '');
-    cleaned = cleaned.replace(/^This component.*$/gm, '');
-    return cleaned.trim();
-  }
-
-  interpolateTemplate(template) {
-    if (!this.projectPlan) return template;
+  // Legacy methods for backward compatibility
+  async generateProjectPlan(projectName, userPrompt) {
+    const result = await this.executeModularClaudeCall('analyze', {
+      userPrompt,
+      projectName
+    });
     
-    return template
-      .replace(/\{projectName\}/g, this.projectPlan.projectName)
-      .replace(/\{description\}/g, this.projectPlan.description);
-  }
-
-  getPageFileName(pageName) {
-    const name = pageName.toLowerCase().replace(/\s+/g, '-');
+    const analysis = this.parseJSON(result.output);
+    this.session.projectPlan = analysis;
+    this.session.projectType = analysis.projectType;
+    this.session.featureToggles = analysis.featureToggles;
     
-    switch (this.stackConfig.framework) {
-      case 'react':
-        return `${this.toPascalCase(name)}.tsx`;
-      case 'vue':
-        return `${this.toPascalCase(name)}.vue`;
-      case 'svelte':
-        return `${name}/+page.svelte`;
-      default:
-        return `${name}.tsx`;
-    }
+    return analysis;
   }
 
-  getComponentFileName(componentName) {
-    const name = componentName.toLowerCase().replace(/\s+/g, '-');
-    
-    switch (this.stackConfig.framework) {
-      case 'react':
-        return `${this.toPascalCase(name)}.tsx`;
-      case 'vue':
-        return `${this.toPascalCase(name)}.vue`;
-      case 'svelte':
-        return `${this.toPascalCase(name)}.svelte`;
-      default:
-        return `${name}.tsx`;
-    }
-  }
-
-  toPascalCase(str) {
-    return str.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())
-              .replace(/^[a-z]/, letter => letter.toUpperCase());
-  }
-
-  // ⚙️ STEP 2: Generate Config & Entry Files
   async generateConfigFiles() {
-    console.log('⚙️ Generating config and entry files...');
+    const result = await this.executeModularClaudeCall('plan', {
+      projectType: this.session.projectType,
+      projectName: this.session.projectPlan.projectName,
+      description: this.session.projectPlan.description,
+      featureToggles: this.session.featureToggles
+    });
     
-    try {
-      // Generate package.json with dynamic dependencies based on stack
-      const packageJson = {
-        name: this.projectPlan.projectName.toLowerCase().replace(/\s+/g, '-'),
-        version: "1.0.0",
-        type: "module",
-        scripts: {
-          dev: "vite",
-          build: "vite build",
-          preview: "vite preview"
-        },
-        dependencies: {
-          "react": "^18.2.0",
-          "react-dom": "^18.2.0",
-          "react-router-dom": "^6.8.0"
-        },
-        devDependencies: {
-          "@vitejs/plugin-react": "^4.0.0",
-          "vite": "^4.4.0",
-          "tailwindcss": "^3.3.0",
-          "postcss": "^8.4.24", 
-          "autoprefixer": "^10.4.14",
-          "@types/react": "^18.2.0",
-          "@types/react-dom": "^18.2.0",
-          "typescript": "^5.0.0"
-        }
-      };
-      
-      this.generatedFiles['package.json'] = JSON.stringify(packageJson, null, 2);
-      
-      // Generate essential config files
-      const prompt = `Generate essential config files for a ${this.projectPlan.projectName} project.
-
-Stack: ${this.stackConfig.name}
-Framework: ${this.stackConfig.framework}
-
-Required files:
-- vite.config.ts
-- tailwind.config.js
-- postcss.config.js
-- index.html
-- src/main.tsx
-- src/index.css
-- tsconfig.json
-- tsconfig.node.json
-
-Return ONLY the complete TypeScript/JavaScript code for each file, no explanations.`;
-
-      const claudeResponse = await this.askClaude(prompt, 3072);
-      const tokensUsed = claudeResponse.tokensUsed || 0;
-      this.totalTokensUsed += tokensUsed;
-      console.log(`📊 Config generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
-      const { output: code } = claudeResponse;
-
-      this.generatedFiles['vite.config.ts'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
-      this.generatedFiles['tailwind.config.js'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
-      this.generatedFiles['postcss.config.js'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
-      this.generatedFiles['index.html'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
-      this.generatedFiles['src/main.tsx'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
-      this.generatedFiles['src/index.css'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
-      this.generatedFiles['tsconfig.json'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
-      this.generatedFiles['tsconfig.node.json'] = code.split('\n').filter(line => line.trim() !== '').join('\n');
-      
-      console.log('✅ Config files generated');
-      
-    } catch (error) {
-      console.error('❌ Failed to generate config files:', error);
-      throw error;
-    }
+    const plan = this.parseJSON(result.output);
+    this.session.generatedFiles = {
+      ...this.session.generatedFiles,
+      ...plan.configFiles,
+      ...plan.entryFiles,
+      'package.json': plan.packageJson
+    };
   }
 
-  // 📄 STEP 3: Generate Pages (from dynamic plan)
   async generatePagesFromPlan() {
-    if (!this.projectPlan?.pages?.length) {
+    if (!this.session.projectPlan?.pages?.length) {
       console.log('⚠️ No pages to generate from plan');
       return;
     }
 
-    console.log('📄 Generating pages from plan...');
-    
-    for (const page of this.projectPlan.pages) {
-      try {
-        // Get the page generation prompt from stack config
-        let prompt = this.stackConfig.prompts.page
-          .replace('{name}', page.name)
-          .replace('{description}', page.description)
-          .replace('{path}', page.path)
-          .replace('{components}', page.components?.join(', ') || '')
-          .replace('{projectContext}', this.projectPlan.description);
-
-        // Add system-level file extension enforcement
-        const systemInstruction = `
-CRITICAL FILE EXTENSION REQUIREMENT:
-- This is a TypeScript React project
-- ALL React components MUST use .tsx extension
-- ALL files should be TypeScript (not JavaScript)
-- Be consistent with file extensions throughout
-- Never mix .js, .jsx, .ts, and .tsx in the same project
-
-${prompt}`;
-
-        const claudeResult = await this.askClaude(systemInstruction, 2048);
-        const tokensUsed = claudeResult.tokensUsed || 0;
-        this.totalTokensUsed += tokensUsed;
-        console.log(`📊 Page generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
-        
-        const { output: code } = claudeResult;
-        const cleanCode = this.cleanCodeResponse(code);
-        
-        const fileName = this.getPageFileName(page.name);
-        const filePath = `src/pages/${fileName}`;
-        
-        this.generatedFiles[filePath] = cleanCode;
-        console.log(`✅ Generated page: ${filePath}`);
-      } catch (error) {
-        console.error(`❌ Failed to generate page ${page.name}:`, error);
-        this.errors.push(`Page generation failed for ${page.name}: ${error.message}`);
-      }
+    for (const page of this.session.projectPlan.pages) {
+      const result = await this.executeModularClaudeCall('generate', {
+        fileType: 'page',
+        projectType: this.session.projectType,
+        projectName: this.session.projectPlan.projectName,
+        pageName: page.name,
+        pagePath: page.path,
+        featureToggles: this.session.featureToggles
+      });
+      
+      const fileName = this.getPageFileName(page.name);
+      const filePath = `src/pages/${fileName}`;
+      this.session.generatedFiles[filePath] = this.cleanCodeResponse(result.output);
     }
   }
 
-  // 🧩 STEP 4: Generate Components (from dynamic plan)
   async generateComponentsFromPlan() {
-    if (!this.projectPlan?.components?.length) {
+    if (!this.session.projectPlan?.components?.length) {
       console.log('⚠️ No components to generate from plan');
       return;
     }
 
-    console.log('🧩 Generating components from plan...');
-    
-    for (const component of this.projectPlan.components) {
-      try {
-        let prompt = this.stackConfig.prompts.component
-          .replace('{name}', component.name)
-          .replace('{description}', component.description)
-          .replace('{type}', component.type || 'functional')
-          .replace('{props}', component.props?.join(', ') || 'none');
-
-        // Enhance prompt with TypeScript enforcement
-        prompt = this.enhancePromptForTypeScript(prompt);
-
-        const claudeResult = await this.askClaude(prompt, 2048);
-        const tokensUsed = claudeResult.tokensUsed || 0;
-        this.totalTokensUsed += tokensUsed;
-        console.log(`📊 Component generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
-        
-        const { output: code } = claudeResult;
-        const cleanCode = this.cleanCodeResponse(code);
-        
-        const fileName = this.getComponentFileName(component.name);
-        const filePath = `src/components/${fileName}`;
-        
-        this.generatedFiles[filePath] = cleanCode;
-        console.log(`✅ Generated component: ${filePath}`);
-      } catch (error) {
-        console.error(`❌ Component generation error for ${component.name}:`, error);
-        this.errors.push(`Component generation failed for ${component.name}: ${error.message}`);
-      }
+    for (const component of this.session.projectPlan.components) {
+      const result = await this.executeModularClaudeCall('generate', {
+        fileType: 'component',
+        projectType: this.session.projectType,
+        projectName: this.session.projectPlan.projectName,
+        componentName: component.name,
+        featureToggles: this.session.featureToggles
+      });
+      
+      const fileName = this.getComponentFileName(component.name);
+      const filePath = `src/components/${fileName}`;
+      this.session.generatedFiles[filePath] = this.cleanCodeResponse(result.output);
     }
   }
 
-  // 📚 STEP 5: Generate Documentation
   async generateDocumentation() {
-    console.log('📚 Generating documentation...');
+    const result = await this.executeModularClaudeCall('compose', {
+      projectType: this.session.projectType,
+      projectName: this.session.projectPlan.projectName,
+      featureToggles: this.session.featureToggles
+    });
     
-    try {
-      const prompt = `Generate comprehensive documentation for this project:
-
-Project Name: ${this.projectPlan.projectName}
-Description: ${this.projectPlan.description}
-Framework: React + TypeScript + Vite + Tailwind CSS
-
-Generated Pages: ${this.projectPlan.pages?.map(p => p.name).join(', ') || 'None'}
-Generated Components: ${this.projectPlan.components?.map(c => c.name).join(', ') || 'None'}
-
-Create a detailed README.md file that includes:
-1. Project title and description
-2. Tech stack
-3. Quick start instructions (install, dev, build)
-4. Project structure overview
-5. Available scripts
-6. Deployment instructions
-7. Contributing guidelines
-
-Return ONLY the README.md content in markdown format, no explanations.`;
-
-      const claudeResult = await this.askClaude(prompt, 2048);
-      const tokensUsed = claudeResult.tokensUsed || 0;
-      this.totalTokensUsed += tokensUsed;
-      console.log(`📊 Documentation generation tokens: ${tokensUsed} (Total: ${this.totalTokensUsed})`);
-      const { output: readme } = claudeResult;
-      
-      if (readme && readme.trim()) {
-        this.generatedFiles['README.md'] = readme;
-        console.log('✅ Generated README.md');
-      } else {
-        // Generate fallback README
-        const fallbackReadme = this.generateFallbackReadme();
-        this.generatedFiles['README.md'] = fallbackReadme;
-        console.log('✅ Generated fallback README.md');
-      }
-      
-    } catch (error) {
-      console.error('❌ Documentation generation error:', error);
-      // Generate fallback README on error
-      const fallbackReadme = this.generateFallbackReadme();
-      this.generatedFiles['README.md'] = fallbackReadme;
-      console.log('✅ Generated fallback README.md after error');
-    }
+    this.session.generatedFiles['README.md'] = result.output;
   }
 
   generateFallbackReadme() {
-    return `# ${this.projectPlan.projectName}
+    return `# ${this.session.projectPlan?.projectName || 'Project'}
 
-${this.projectPlan.description}
+${this.session.projectPlan?.description || 'A modern web application'}
 
 ## 🚀 Quick Start
 
@@ -959,55 +936,58 @@ npm run dev
 npm run build
 \`\`\`
 
-## 📦 Tech Stack
+## 🛠️ Tech Stack
 
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
-- Lucide Icons
+- ${this.stackConfig.framework} framework
+- ${this.stackConfig.buildTool} build tool
+- ${this.stackConfig.styling} styling
+- ${this.stackConfig.language} language
 
 ## 📁 Project Structure
 
 \`\`\`
 src/
-  components/     # Reusable UI components
-  pages/         # Page components
-  App.tsx        # Main application
-  main.tsx       # Entry point
-  index.css      # Global styles
+├── components/     # Reusable UI components
+├── pages/         # Application pages
+└── ...
 \`\`\`
-
-## 🛠️ Available Scripts
-
-- \`npm run dev\` - Start development server
-- \`npm run build\` - Build for production
-- \`npm run preview\` - Preview production build
-- \`npm run lint\` - Run ESLint
 
 ## 🚀 Deployment
 
-After building, deploy the \`dist\` folder to any static hosting service:
-- Vercel
-- Netlify
-- GitHub Pages
+This project is ready for deployment on platforms like Vercel, Netlify, or any static hosting service.
 
----
+## 📝 License
 
-Generated by ZapQ IDE - AI-powered development platform`;
+MIT License`;
   }
 
-  // Helper method to enforce file extension consistency
   enhancePromptForTypeScript(prompt) {
-    return `CRITICAL FILE EXTENSION REQUIREMENT:
-- This is a TypeScript React project
-- ALL React components MUST use .tsx extension  
-- ALL files should be TypeScript (not JavaScript)
-- Be consistent with file extensions throughout
-- Never mix .js, .jsx, .ts, and .tsx in the same project
+    return `${prompt}
 
-${prompt}
+IMPORTANT: 
+- Use TypeScript with proper type definitions
+- Include interface definitions for props
+- Use modern React patterns (hooks, functional components)
+- Ensure all imports and exports are properly typed
+- Follow TypeScript best practices`;
+  }
 
-IMPORTANT: Generate only TypeScript React component code (.tsx). Be consistent with TypeScript throughout.`;
+  getPromptForIntent(intent, data) {
+    switch (intent) {
+      case 'analyze':
+        return this.getAnalyzePrompt(data);
+      case 'plan':
+        return this.getPlanPrompt(data);
+      case 'generate':
+        return this.getGeneratePrompt(data);
+      case 'validate':
+        return this.getValidatePrompt(data);
+      case 'compose':
+        return this.getComposePrompt(data);
+      case 'improve':
+        return this.getImprovePrompt(data);
+      default:
+        throw new Error(`Unknown intent: ${intent}`);
+    }
   }
 }
