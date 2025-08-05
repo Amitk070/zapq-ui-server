@@ -171,26 +171,32 @@ Description: ${data.description}
 Enabled Features: ${enabledFeatures}
 Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
 
-Generate the following configuration files with clean code (NO markdown formatting):
+CRITICAL REQUIREMENTS:
+- Return ONLY clean code files, NO markdown formatting
+- Use proper file extensions (.json, .ts, .tsx, .js, .html, .css)
+- Format each file as: FILENAME:content (no markdown blocks)
+- Each file must be complete and properly formatted
+- Do not include partial code or placeholder content
+- Do not concatenate multiple files together
+
+Generate the following configuration files:
 
 1. **package.json** - Project configuration with dependencies
 2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
 3. **tailwind.config.js** - Tailwind CSS configuration
 4. **tsconfig.json** - TypeScript configuration
-5. **index.html** - Main HTML entry point
-6. **src/main.tsx** - React entry point
-7. **src/App.tsx** - Main App component
-8. **src/index.css** - Global styles with Tailwind imports
+5. **tsconfig.node.json** - Node TypeScript configuration
+6. **index.html** - Main HTML entry point
+7. **src/main.tsx** - React entry point
+8. **src/App.tsx** - Main App component
+9. **src/index.css** - Global styles with Tailwind imports
 
-IMPORTANT: 
-- Return ONLY clean code files, NO markdown formatting
-- Use proper file extensions (.json, .ts, .tsx, .js, .html, .css)
-- Include all necessary dependencies and configurations
-- Use modern React patterns with TypeScript
-- Include Tailwind CSS setup
-- Adapt configuration based on the selected stack
+EXAMPLE FORMAT:
+package.json:{"name":"project-name","version":"1.0.0",...}
+tsconfig.json:{"compilerOptions":{...}}
+index.html:<!DOCTYPE html>...
 
-Format each file as: FILENAME:content (no markdown blocks)`;
+IMPORTANT: Each file must be complete and properly formatted. Do not include partial code or placeholder content.`;
   }
 
   getGeneratePrompt(data) {
@@ -222,31 +228,36 @@ Description: ${data.description}
 Enabled Features: ${enabledFeatures}
 Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
 
-Generate the following files with clean code (NO markdown formatting):
+CRITICAL REQUIREMENTS:
+- Return ONLY clean code files, NO markdown formatting
+- Use proper file extensions (.json, .ts, .tsx, .js, .html, .css)
+- Format each file as: FILENAME:content (no markdown blocks)
+- Each file must be complete and properly formatted
+- Do not include partial code or placeholder content
+- Do not concatenate multiple files together
+
+Generate the following files:
 
 1. **package.json** - Project configuration with dependencies
 2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
 3. **tailwind.config.js** - Tailwind CSS configuration
 4. **tsconfig.json** - TypeScript configuration
-5. **index.html** - Main HTML file
-6. **src/main.tsx** - React entry point
-7. **src/App.tsx** - Main App component
-8. **src/index.css** - Global styles
-9. **src/components/Header.tsx** - Navigation component
-10. **src/components/Hero.tsx** - Hero section
-11. **src/components/Footer.tsx** - Footer component
-12. **src/components/Products.tsx** - Product showcase (if ecommerce)
+5. **tsconfig.node.json** - Node TypeScript configuration
+6. **index.html** - Main HTML file
+7. **src/main.tsx** - React entry point
+8. **src/App.tsx** - Main App component
+9. **src/index.css** - Global styles
+10. **src/components/Header.tsx** - Navigation component
+11. **src/components/Hero.tsx** - Hero section
+12. **src/components/Footer.tsx** - Footer component
+13. **src/components/Products.tsx** - Product showcase (if ecommerce)
 
-IMPORTANT: 
-- Return ONLY clean code files, NO markdown formatting
-- Use proper file extensions (.json, .ts, .tsx, .js, .html, .css)
-- Include all necessary imports and dependencies
-- Use modern React patterns with TypeScript
-- Include Framer Motion animations
-- Use Tailwind CSS for styling
-- Make all content dynamic based on project type and stack configuration
+EXAMPLE FORMAT:
+package.json:{"name":"project-name","version":"1.0.0",...}
+src/App.tsx:import React from 'react'...
+index.html:<!DOCTYPE html>...
 
-Format each file as: FILENAME:content (no markdown blocks)`;
+IMPORTANT: Each file must be complete and properly formatted. Do not include partial code or placeholder content.`;
   }
 
   getValidatePrompt(data) {
@@ -295,7 +306,13 @@ Project: ${data.projectName}
 Description: ${data.description}
 Enabled Features: ${enabledFeatures}
 
-Generate README.md with clean markdown (no code blocks around the entire file):
+CRITICAL REQUIREMENTS:
+- Return ONLY clean markdown files, NO code blocks around the entire file
+- Format each file as: FILENAME:content (no markdown blocks)
+- Each file must be complete and properly formatted
+- Do not include partial content or placeholder text
+
+Generate README.md with clean markdown:
 
 README.md:
 # ${data.projectName}
@@ -587,53 +604,178 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
 
   extractFilesFromText(text) {
     const files = {};
+    const processedFiles = new Set();
     
-    // First, try to extract files in the format "FILENAME:content"
-    const filePattern = /^([a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json|js)):\s*([\s\S]*?)(?=^[a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json|js):|$)/gm;
-    let match;
+    // Clean the text first
+    const cleanedText = text.trim();
     
-    while ((match = filePattern.exec(text)) !== null) {
-      const [, filePath, extension, content] = match;
-      if (filePath && content) {
-        files[filePath.trim()] = content.trim();
+    // Split the text into lines and process each file
+    const lines = cleanedText.split('\n');
+    let currentFile = null;
+    let currentContent = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Check if this line starts a new file
+      const fileMatch = line.match(/^([a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json|js|md)):\s*(.*)$/);
+      
+      if (fileMatch) {
+        // Save the previous file if it exists
+        if (currentFile && currentContent.length > 0) {
+          const correctedPath = this.correctFileExtension(currentFile);
+          if (!processedFiles.has(correctedPath)) {
+            const content = currentContent.join('\n').trim();
+            if (content) {
+              files[correctedPath] = content;
+              processedFiles.add(correctedPath);
+              console.log(`📁 Extracted: ${correctedPath} (${content.length} chars)`);
+            }
+          }
+        }
+        
+        // Start new file
+        currentFile = fileMatch[1];
+        currentContent = [fileMatch[3] || '']; // Include any content on the same line
+      } else if (currentFile) {
+        // Add line to current file content
+        currentContent.push(line);
       }
     }
     
-    // Fallback: Extract code blocks with file paths
-    const codeBlockRegex = /```(?:(\w+):([^\n]+)\n)?([\s\S]*?)```/g;
-    
-    while ((match = codeBlockRegex.exec(text)) !== null) {
-      const [, language, filePath, content] = match;
-      if (filePath) {
-        files[filePath.trim()] = content.trim();
-      } else if (language && ['tsx', 'ts', 'jsx', 'js', 'html', 'css', 'json'].includes(language)) {
-        // If no file path but has language, try to infer from content
-        if (language === 'json' && content.includes('"name"')) {
-          files['package.json'] = content.trim();
-        } else if (language === 'tsx' || language === 'jsx') {
-          files['src/App.tsx'] = content.trim();
-        } else if (language === 'html') {
-          files['index.html'] = content.trim();
+    // Save the last file
+    if (currentFile && currentContent.length > 0) {
+      const correctedPath = this.correctFileExtension(currentFile);
+      if (!processedFiles.has(correctedPath)) {
+        const content = currentContent.join('\n').trim();
+        if (content) {
+          files[correctedPath] = content;
+          processedFiles.add(correctedPath);
+          console.log(`📁 Extracted: ${correctedPath} (${content.length} chars)`);
         }
       }
     }
     
-    // Also look for file paths in the text
-    const filePathRegex = /([a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json))/g;
-    while ((match = filePathRegex.exec(text)) !== null) {
-      const filePath = match[1];
-      // Extract content after the file path
-      const afterPath = text.substring(match.index + filePath.length);
-      const nextFileMatch = afterPath.match(/^[a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json)/);
-      const endIndex = nextFileMatch ? afterPath.indexOf(nextFileMatch[0]) : afterPath.length;
-      const content = afterPath.substring(0, endIndex).trim();
-      
-      if (content && !files[filePath]) {
-        files[filePath] = content;
+    // Secondary pattern: Code blocks with file paths
+    const codeBlockPattern = /```(?:(\w+):([^\n]+)\n)?([\s\S]*?)```/g;
+    let match;
+    
+    while ((match = codeBlockPattern.exec(cleanedText)) !== null) {
+      const [, language, filePath, content] = match;
+      if (filePath && content) {
+        const cleanPath = filePath.trim();
+        const cleanContent = content.trim();
+        const correctedPath = this.correctFileExtension(cleanPath);
+        
+        if (!processedFiles.has(correctedPath)) {
+          files[correctedPath] = cleanContent;
+          processedFiles.add(correctedPath);
+          console.log(`📁 Extracted from code block: ${correctedPath} (${cleanContent.length} chars)`);
+        }
       }
     }
     
-    return files;
+    // Fallback: Look for specific file patterns
+    const specificFiles = [
+      'package.json', 'vite.config.ts', 'tailwind.config.js', 'tsconfig.json', 'tsconfig.node.json',
+      'index.html', 'src/main.tsx', 'src/App.tsx', 'src/index.css',
+      'src/components/Header.tsx', 'src/components/Hero.tsx', 
+      'src/components/Footer.tsx', 'src/components/Products.tsx'
+    ];
+    
+    for (const fileName of specificFiles) {
+      if (processedFiles.has(fileName)) continue;
+      
+      // Look for the file name followed by content
+      const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const fileRegex = new RegExp(`${escapedFileName}\\s*:\\s*([\\s\\S]*?)(?=\\n\\n|$)`, 'g');
+      const fileMatch = fileRegex.exec(cleanedText);
+      
+      if (fileMatch && fileMatch[1]) {
+        const cleanContent = fileMatch[1].trim();
+        if (cleanContent && !cleanContent.includes(':')) { // Avoid nested file content
+          files[fileName] = cleanContent;
+          processedFiles.add(fileName);
+          console.log(`📁 Extracted specific file: ${fileName} (${cleanContent.length} chars)`);
+        }
+      }
+    }
+    
+    // Validate and clean extracted files
+    const validatedFiles = {};
+    for (const [filePath, content] of Object.entries(files)) {
+      if (this.isValidFileContent(filePath, content)) {
+        validatedFiles[filePath] = this.cleanFileContent(content);
+      } else {
+        console.log(`⚠️ Skipping invalid file: ${filePath}`);
+      }
+    }
+    
+    console.log(`✅ Extracted ${Object.keys(validatedFiles).length} valid files`);
+    return validatedFiles;
+  }
+
+  correctFileExtension(filePath) {
+    // Map common wrong extensions to correct ones
+    const extensionMap = {
+      'package.js': 'package.json',
+      'tsconfig.js': 'tsconfig.json',
+      'tsconfig.node.js': 'tsconfig.node.json',
+      'tailwind.config.js': 'tailwind.config.js', // This one is correct
+      'vite.config.js': 'vite.config.ts',
+      'next.config.js': 'next.config.js', // This one is correct
+      'remix.config.js': 'remix.config.js' // This one is correct
+    };
+    
+    return extensionMap[filePath] || filePath;
+  }
+
+  isValidFileContent(filePath, content) {
+    // Basic validation for different file types
+    if (!content || content.length < 10) return false;
+    
+    if (filePath.endsWith('.json')) {
+      try {
+        JSON.parse(content);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    
+    if (filePath.endsWith('.html')) {
+      return content.includes('<html') || content.includes('<!DOCTYPE');
+    }
+    
+    if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
+      return content.includes('import') || content.includes('export') || content.includes('function') || content.includes('const');
+    }
+    
+    if (filePath.endsWith('.css')) {
+      return content.includes('{') && content.includes('}');
+    }
+    
+    if (filePath.endsWith('.js')) {
+      return content.includes('import') || content.includes('export') || content.includes('function') || content.includes('const');
+    }
+    
+    return true; // Default to valid for other file types
+  }
+
+  cleanFileContent(content) {
+    // Remove common artifacts and clean up content
+    let cleaned = content.trim();
+    
+    // Remove markdown code block markers if present
+    cleaned = cleaned.replace(/^```[\w]*\n/, '').replace(/\n```$/, '');
+    
+    // Remove leading/trailing whitespace and normalize line endings
+    cleaned = cleaned.replace(/\r\n/g, '\n').trim();
+    
+    // Remove any remaining file path prefixes
+    cleaned = cleaned.replace(/^[a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json|js|md):\s*/, '');
+    
+    return cleaned;
   }
 
   extractAllFiles(results) {
