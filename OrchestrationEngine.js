@@ -190,7 +190,9 @@ IMPORTANT:
 - Include Tailwind CSS setup
 - Adapt configuration based on the selected stack
 
-Format each file as: FILENAME:content (no markdown blocks)`;
+Format each file as: FILENAME:content (no markdown blocks)
+
+IMPORTANT: Each file must be complete and properly formatted. Do not include partial code or placeholder content.`;
   }
 
   getGeneratePrompt(data) {
@@ -246,7 +248,9 @@ IMPORTANT:
 - Use Tailwind CSS for styling
 - Make all content dynamic based on project type and stack configuration
 
-Format each file as: FILENAME:content (no markdown blocks)`;
+Format each file as: FILENAME:content (no markdown blocks)
+
+IMPORTANT: Each file must be complete and properly formatted. Do not include partial code or placeholder content.`;
   }
 
   getValidatePrompt(data) {
@@ -599,7 +603,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
       }
     }
     
-    // Fallback: Extract code blocks with file paths
+    // Extract code blocks with file paths (improved regex)
     const codeBlockRegex = /```(?:(\w+):([^\n]+)\n)?([\s\S]*?)```/g;
     
     while ((match = codeBlockRegex.exec(text)) !== null) {
@@ -618,7 +622,24 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
       }
     }
     
-    // Also look for file paths in the text
+    // Look for specific file patterns in the text
+    const specificFiles = [
+      'package.json', 'vite.config.ts', 'tailwind.config.js', 'tsconfig.json',
+      'index.html', 'src/main.tsx', 'src/App.tsx', 'src/index.css',
+      'src/components/Header.tsx', 'src/components/Hero.tsx', 
+      'src/components/Footer.tsx', 'src/components/Products.tsx'
+    ];
+    
+    for (const fileName of specificFiles) {
+      // Look for the file name followed by content
+      const fileRegex = new RegExp(`${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:\\s*([\\s\\S]*?)(?=\\n\\n|$)`, 'g');
+      const fileMatch = fileRegex.exec(text);
+      if (fileMatch && fileMatch[1]) {
+        files[fileName] = fileMatch[1].trim();
+      }
+    }
+    
+    // Also look for file paths in the text (fallback)
     const filePathRegex = /([a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json))/g;
     while ((match = filePathRegex.exec(text)) !== null) {
       const filePath = match[1];
