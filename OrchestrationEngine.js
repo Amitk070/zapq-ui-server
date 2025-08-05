@@ -108,7 +108,15 @@ export class OrchestrationEngine {
 
   // Intent-based prompt templates
   getAnalyzePrompt(data) {
-    return `Analyze this project request and determine the optimal project type and structure.
+    const stackConfig = this.stackConfig || {};
+    if (stackConfig.prompts && stackConfig.prompts.analyze) {
+      return stackConfig.prompts.analyze
+        .replace('{userPrompt}', data.userPrompt)
+        .replace('{projectName}', data.projectName || 'Project');
+    }
+    
+    // Fallback to basic prompt if no stack-specific prompt
+    return `Analyze this project request and determine the optimal project type and structure for ${stackConfig.framework} with ${stackConfig.buildTool}.
 
 User Request: "${data.userPrompt}"
 
@@ -129,83 +137,116 @@ Return the project analysis as JSON:
     "analytics": true,
     "responsive": true
   }
-}`;
+}
+
+IMPORTANT: Return ONLY valid JSON, no markdown formatting or explanations.`;
   }
 
   getPlanPrompt(data) {
+    const stackConfig = this.stackConfig || {};
     const featureToggles = data.featureToggles || {};
     const enabledFeatures = Object.entries(featureToggles)
       .filter(([_, enabled]) => enabled)
       .map(([feature]) => feature)
       .join(', ');
 
-    return `Plan the technical structure for a ${data.projectType} project.
+    // Use stack-specific plan prompt if available
+    if (stackConfig.prompts && stackConfig.prompts.plan) {
+      return stackConfig.prompts.plan
+        .replace('{projectType}', data.projectType)
+        .replace('{projectName}', data.projectName)
+        .replace('{description}', data.description)
+        .replace('{enabledFeatures}', enabledFeatures)
+        .replace('{framework}', stackConfig.framework)
+        .replace('{buildTool}', stackConfig.buildTool)
+        .replace('{styling}', stackConfig.styling)
+        .replace('{language}', stackConfig.language);
+    }
+
+    // Fallback to basic plan prompt
+    return `Plan the technical structure for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
 
 Project: ${data.projectName}
 Description: ${data.description}
 Enabled Features: ${enabledFeatures}
+Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
 
-Return the configuration files. You can return them as JSON or as text with code blocks:
+Generate the following configuration files with clean code (NO markdown formatting):
 
-1. package.json with dependencies
-2. vite.config.ts for build setup
-3. tailwind.config.js for styling
-4. tsconfig.json for TypeScript
-5. index.html entry point
-6. src/main.tsx React entry
-7. src/App.tsx main component
-8. src/index.css with Tailwind imports`;
+1. **package.json** - Project configuration with dependencies
+2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
+3. **tailwind.config.js** - Tailwind CSS configuration
+4. **tsconfig.json** - TypeScript configuration
+5. **index.html** - Main HTML entry point
+6. **src/main.tsx** - React entry point
+7. **src/App.tsx** - Main App component
+8. **src/index.css** - Global styles with Tailwind imports
+
+IMPORTANT: 
+- Return ONLY clean code files, NO markdown formatting
+- Use proper file extensions (.json, .ts, .tsx, .js, .html, .css)
+- Include all necessary dependencies and configurations
+- Use modern React patterns with TypeScript
+- Include Tailwind CSS setup
+- Adapt configuration based on the selected stack
+
+Format each file as: FILENAME:content (no markdown blocks)`;
   }
 
   getGeneratePrompt(data) {
+    const stackConfig = this.stackConfig || {};
     const featureToggles = data.featureToggles || {};
     const enabledFeatures = Object.entries(featureToggles)
       .filter(([_, enabled]) => enabled)
       .map(([feature]) => feature)
       .join(', ');
 
-    return `Generate all components and pages for this ${data.projectType} project.
+    // Use stack-specific generate prompt if available
+    if (stackConfig.prompts && stackConfig.prompts.generate) {
+      return stackConfig.prompts.generate
+        .replace('{projectType}', data.projectType)
+        .replace('{projectName}', data.projectName)
+        .replace('{description}', data.description)
+        .replace('{enabledFeatures}', enabledFeatures)
+        .replace('{framework}', stackConfig.framework)
+        .replace('{buildTool}', stackConfig.buildTool)
+        .replace('{styling}', stackConfig.styling)
+        .replace('{language}', stackConfig.language);
+    }
+
+    // Fallback to basic generate prompt
+    return `Generate all components and pages for this ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
 
 Project: ${data.projectName}
 Description: ${data.description}
 Enabled Features: ${enabledFeatures}
+Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
 
-Generate ALL components dynamically based on the project requirements:
+Generate the following files with clean code (NO markdown formatting):
 
-1. **Navbar Component** - Create a modern navigation bar with:
-   - Dynamic logo/brand name based on project
-   - Navigation links based on pages
-   - Mobile responsive menu
-   - Modern styling with animations
-
-2. **Hero Section** - Create a compelling hero section with:
-   - Dynamic headline based on project type
-   - Relevant call-to-action buttons
-   - Background styling appropriate for project
-   - Responsive design
-
-3. **Footer Component** - Create a professional footer with:
-   - Dynamic company/brand information
-   - Relevant links based on project
-   - Social media integration if applicable
-   - Modern styling
-
-4. **All Other Components** - Generate any additional components needed:
-   - Feature cards with dynamic content
-   - Product showcases if ecommerce
-   - Contact forms if needed
-   - Newsletter signup if enabled
-   - Chatbot integration if enabled
+1. **package.json** - Project configuration with dependencies
+2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
+3. **tailwind.config.js** - Tailwind CSS configuration
+4. **tsconfig.json** - TypeScript configuration
+5. **index.html** - Main HTML file
+6. **src/main.tsx** - React entry point
+7. **src/App.tsx** - Main App component
+8. **src/index.css** - Global styles
+9. **src/components/Header.tsx** - Navigation component
+10. **src/components/Hero.tsx** - Hero section
+11. **src/components/Footer.tsx** - Footer component
+12. **src/components/Products.tsx** - Product showcase (if ecommerce)
 
 IMPORTANT: 
-- DO NOT use hardcoded content
-- Make everything dynamic based on project type and requirements
+- Return ONLY clean code files, NO markdown formatting
+- Use proper file extensions (.json, .ts, .tsx, .js, .html, .css)
+- Include all necessary imports and dependencies
 - Use modern React patterns with TypeScript
 - Include Framer Motion animations
 - Use Tailwind CSS for styling
-- Make all text content relevant to the specific project
+- Make all content dynamic based on project type and stack configuration
 
-Return the complete component code with no hardcoded placeholders.`;
+Format each file as: FILENAME:content (no markdown blocks)`;
   }
 
   getValidatePrompt(data) {
@@ -236,7 +277,9 @@ Return the validation results as JSON:
   "recommendations": [
     "list of improvements"
   ]
-}`;
+}
+
+IMPORTANT: Return ONLY valid JSON, no markdown formatting or explanations.`;
   }
 
   getComposePrompt(data) {
@@ -252,21 +295,38 @@ Project: ${data.projectName}
 Description: ${data.description}
 Enabled Features: ${enabledFeatures}
 
-Generate:
+Generate README.md with clean markdown (no code blocks around the entire file):
 
-1. **README.md** - Complete project documentation with:
-   - Project overview specific to the project type
-   - Installation instructions
-   - Usage examples
-   - Technology stack details
-   - Deployment instructions
+README.md:
+# ${data.projectName}
 
-2. **Additional Documentation** - Any other docs needed:
-   - API documentation if applicable
-   - Component documentation
-   - Style guide if needed
+${data.description}
 
-Make all content dynamic and relevant to the specific project type and features.`;
+## Features
+- ${enabledFeatures.split(', ').map(f => f).join('\n- ')}
+
+## Installation
+\`\`\`bash
+npm install
+\`\`\`
+
+## Development
+\`\`\`bash
+npm run dev
+\`\`\`
+
+## Build
+\`\`\`bash
+npm run build
+\`\`\`
+
+## Tech Stack
+- React 18 with TypeScript
+- Vite for fast development
+- Tailwind CSS for styling
+- Framer Motion for animations
+
+IMPORTANT: Return ONLY the README.md content, no markdown formatting around it.`;
   }
 
   getImprovePrompt(data) {
@@ -528,9 +588,19 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
   extractFilesFromText(text) {
     const files = {};
     
-    // Extract code blocks with file paths
-    const codeBlockRegex = /```(?:(\w+):([^\n]+)\n)?([\s\S]*?)```/g;
+    // First, try to extract files in the format "FILENAME:content"
+    const filePattern = /^([a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json|js)):\s*([\s\S]*?)(?=^[a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json|js):|$)/gm;
     let match;
+    
+    while ((match = filePattern.exec(text)) !== null) {
+      const [, filePath, extension, content] = match;
+      if (filePath && content) {
+        files[filePath.trim()] = content.trim();
+      }
+    }
+    
+    // Fallback: Extract code blocks with file paths
+    const codeBlockRegex = /```(?:(\w+):([^\n]+)\n)?([\s\S]*?)```/g;
     
     while ((match = codeBlockRegex.exec(text)) !== null) {
       const [, language, filePath, content] = match;
@@ -1005,8 +1075,58 @@ IMPORTANT:
         return this.getComposePrompt(data);
       case 'improve':
         return this.getImprovePrompt(data);
+      case 'page':
+        return this.getPagePrompt(data);
+      case 'component':
+        return this.getComponentPrompt(data);
       default:
         throw new Error(`Unknown intent: ${intent}`);
     }
+  }
+
+  getPagePrompt(data) {
+    const stackConfig = this.stackConfig || {};
+    
+    // Use stack-specific page prompt if available
+    if (stackConfig.prompts && stackConfig.prompts.page) {
+      return stackConfig.prompts.page
+        .replace('{name}', data.name)
+        .replace('{projectType}', data.projectType)
+        .replace('{description}', data.description)
+        .replace('{path}', data.path)
+        .replace('{features}', Array.isArray(data.features) ? data.features.join(', ') : data.features);
+    }
+    
+    // Fallback to basic page prompt
+    return `Generate a React TypeScript page component for ${data.name}.
+
+Project Type: ${data.projectType}
+Description: ${data.description}
+Path: ${data.path}
+Features: ${Array.isArray(data.features) ? data.features.join(', ') : data.features}
+
+Return ONLY the complete TypeScript React component code.`;
+  }
+
+  getComponentPrompt(data) {
+    const stackConfig = this.stackConfig || {};
+    
+    // Use stack-specific component prompt if available
+    if (stackConfig.prompts && stackConfig.prompts.component) {
+      return stackConfig.prompts.component
+        .replace('{name}', data.name)
+        .replace('{projectType}', data.projectType)
+        .replace('{description}', data.description)
+        .replace('{features}', Array.isArray(data.features) ? data.features.join(', ') : data.features);
+    }
+    
+    // Fallback to basic component prompt
+    return `Generate a React TypeScript component for ${data.name}.
+
+Project Type: ${data.projectType}
+Description: ${data.description}
+Features: ${Array.isArray(data.features) ? data.features.join(', ') : data.features}
+
+Return ONLY the complete TypeScript React component code.`;
   }
 }
