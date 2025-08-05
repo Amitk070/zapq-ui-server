@@ -29,22 +29,36 @@ export class OrchestrationEngine {
       throw new Error('askClaude function not provided to OrchestrationEngine');
     }
     
-    const result = await this.askClaude(enhancedPrompt, maxTokens);
-    
-    // Track in session history
-    this.session.history.push({
-      timestamp: new Date().toISOString(),
-      prompt: enhancedPrompt,
-      response: result.output,
-      tokensUsed: result.tokensUsed || 0,
-      context: context,
-      step: this.session.currentStep
-    });
-    
-    this.session.totalTokensUsed += result.tokensUsed || 0;
-    console.log(`📊 Session ${this.sessionId} - Claude call: ${result.tokensUsed || 0} tokens (Total: ${this.session.totalTokensUsed})`);
-    
-    return result;
+    try {
+      const result = await this.askClaude(enhancedPrompt, maxTokens);
+      
+      // Track in session history
+      this.session.history.push({
+        timestamp: new Date().toISOString(),
+        prompt: enhancedPrompt,
+        response: result.output,
+        tokensUsed: result.tokensUsed || 0,
+        context: context,
+        step: this.session.currentStep
+      });
+      
+      this.session.totalTokensUsed += result.tokensUsed || 0;
+      console.log(`📊 Session ${this.sessionId} - Claude call: ${result.tokensUsed || 0} tokens (Total: ${this.session.totalTokensUsed})`);
+      
+      return result;
+    } catch (error) {
+      console.error(`❌ askClaude error:`, error);
+      
+      // Handle rate limiting specifically
+      if (error.message.includes('rate limit') || error.message.includes('Rate limit')) {
+        console.log('⏱️ Rate limit detected, waiting before retry...');
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        throw new Error('Rate limit exceeded. Please try again in a few minutes.');
+      }
+      
+      this.session.errors.push(error.message);
+      throw error;
+    }
   }
 
   // Build intelligent session context for Claude
@@ -331,22 +345,7 @@ Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.
 6. **index.html** - Complete HTML with proper meta tags and SEO
 
 🔧 TECHNICAL REQUIREMENTS:
-- Include ALL necessary dependencies for a production app:
-  * React 18+ with TypeScript
-  * Vite for fast development and building
-  * Tailwind CSS for styling
-  * Framer Motion for animations
-  * React Router for navigation (if multi-page)
-  * Zustand for state management
-  * React Hook Form for form handling
-  * Zod for validation
-  * React Query for data fetching
-  * React Hot Toast for notifications
-  * React Icons for icons
-  * React Intersection Observer for scroll effects
-  * Headless UI for accessible components
-  * ESLint and Prettier for code quality
-  * TypeScript strict mode configuration
+- Include ALL necessary dependencies: React 18+, TypeScript, Vite, Tailwind CSS, Framer Motion, React Hook Form, Zod, React Hot Toast, React Icons, Headless UI
 - Proper TypeScript configuration with strict mode
 - Tailwind CSS with custom theme and responsive design
 - SEO-optimized HTML with proper meta tags
@@ -398,11 +397,7 @@ Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.
 - Add smooth animations and transitions with Framer Motion
 - Include proper error handling and loading states
 - Use modern React patterns with hooks
-- Implement proper state management with Zustand
-- Add form validation with React Hook Form + Zod
-- Include proper routing with React Router (if multi-page)
-- Add data fetching with React Query
-- Implement proper error boundaries
+- Implement proper state management and form validation
 - Add loading spinners and skeleton screens
 - Include proper SEO meta tags and structured data
 - Add proper keyboard navigation and focus management
