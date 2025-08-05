@@ -21,7 +21,7 @@ export class OrchestrationEngine {
   }
 
   // Enhanced Claude call with session history and context
-  async askClaudeWithSession(prompt, maxTokens = 8192, context = {}) {
+  async askClaudeWithSession(prompt, maxTokens = 4096, context = {}) {
     const sessionContext = this.buildSessionContext(context);
     const enhancedPrompt = this.enhancePromptWithHistory(prompt, sessionContext);
     
@@ -93,7 +93,7 @@ export class OrchestrationEngine {
   }
 
   // Modular Claude call with intent-based execution
-  async executeModularClaudeCall(intent, data, maxTokens = 8192) {
+  async executeModularClaudeCall(intent, data, maxTokens = 4096) {
     const prompt = this.getPromptForIntent(intent, data);
     const sessionContext = this.buildSessionContext();
     
@@ -385,7 +385,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         ...analysis, 
         projectName, 
         userPrompt 
-      }, 16384);
+      }, 8192);
       
       // Step 4: Compose
       this.updateProgress(80, '📚 Creating documentation...');
@@ -409,7 +409,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         ...analysis, 
         projectName, 
         userPrompt 
-      }, 8192);
+      }, 4096);
       
       const totalTime = Date.now() - startTime;
       console.log(`🎉 Project generation completed in ${(totalTime / 1000).toFixed(1)}s`);
@@ -478,7 +478,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
   }
 
   // Legacy compatibility methods
-  async askClaudeWithTracking(prompt, maxTokens = 8192) {
+  async askClaudeWithTracking(prompt, maxTokens = 4096) {
     return await this.askClaudeWithSession(prompt, maxTokens);
   }
 

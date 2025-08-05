@@ -100,6 +100,13 @@ console.log('Loaded ENV:', {
 });
 
 const API_KEY = process.env.ANTHROPIC_API_KEY;
+
+// Check if API key is available
+if (!API_KEY) {
+  console.error('❌ Missing ANTHROPIC_API_KEY in environment variables');
+  console.error('Please set ANTHROPIC_API_KEY in your environment variables');
+  // Don't exit - let the server start but return errors for Claude calls
+}
 if (!API_KEY) {
   console.error('❌ Missing ANTHROPIC_API_KEY in environment variables');
   process.exit(1);
@@ -416,9 +423,14 @@ app.post('/save', (req, res) => {
 });
 
 // Enhanced askClaude function with rate limiting and retry logic
-async function askClaude(prompt, max_tokens = 8192, retryCount = 0) {
+async function askClaude(prompt, max_tokens = 4096, retryCount = 0) {
   const maxRetries = 3;
   const baseDelay = 60000; // 1 minute base delay
+  
+  // Check if API key is available
+  if (!API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY is not set. Please configure the API key in environment variables.');
+  }
   
   try {
     console.log(`🤖 Claude request: ${prompt.substring(0, 100)}... (${max_tokens} max tokens)`);
