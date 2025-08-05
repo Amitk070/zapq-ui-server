@@ -164,39 +164,62 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting or explanations.`;
     }
 
     // Fallback to basic plan prompt
-    return `Plan the technical structure for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
+    return `Plan the technical structure for a COMPLETE, ENTERPRISE-READY ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
 
 Project: ${data.projectName}
 Description: ${data.description}
 Enabled Features: ${enabledFeatures}
 Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
 
-CRITICAL REQUIREMENTS:
-- Return ONLY clean code files, NO markdown formatting
-- Use proper file extensions (.json, .ts, .tsx, .js, .html, .css)
-- Format each file as: FILENAME:content (no markdown blocks)
-- Each file must be complete and properly formatted
-- Do not include partial code or placeholder content
-- Do not concatenate multiple files together
+🚀 ENTERPRISE PLANNING REQUIREMENTS:
+- Plan for a FULLY FUNCTIONAL website with complete content
+- Include ALL necessary components and pages
+- Use realistic, professional content (no Lorem Ipsum)
+- Implement responsive design with mobile-first approach
+- Add proper SEO meta tags and structured data
+- Include error handling and loading states
+- Use modern React patterns with TypeScript
+- Implement accessibility features (ARIA labels, keyboard navigation)
+- Add smooth animations and transitions
+- Include proper form validation and user feedback
 
-Generate the following configuration files:
+📁 REQUIRED CONFIGURATION FILES:
 
-1. **package.json** - Project configuration with dependencies
+1. **package.json** - Complete project configuration with ALL dependencies
 2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
-3. **tailwind.config.js** - Tailwind CSS configuration
+3. **tailwind.config.js** - Tailwind CSS configuration with custom theme
 4. **tsconfig.json** - TypeScript configuration
 5. **tsconfig.node.json** - Node TypeScript configuration
-6. **index.html** - Main HTML entry point
-7. **src/main.tsx** - React entry point
-8. **src/App.tsx** - Main App component
-9. **src/index.css** - Global styles with Tailwind imports
+6. **index.html** - Complete HTML with proper meta tags and SEO
+7. **src/main.tsx** - React entry point with error boundaries
+8. **src/App.tsx** - COMPLETE main App component with ALL sections
+9. **src/index.css** - Global styles with Tailwind and custom CSS
+
+🎯 PLANNING REQUIREMENTS:
+- Plan for realistic business content and structure
+- Include proper component hierarchy and data flow
+- Plan for responsive design and mobile optimization
+- Include SEO and accessibility planning
+- Plan for performance optimization
+- Include error handling and user experience planning
+
+🔧 TECHNICAL PLANNING:
+- TypeScript strict mode with proper types
+- ESLint configuration for code quality
+- Prettier formatting configuration
+- Responsive design for all screen sizes
+- Performance optimization (lazy loading, code splitting)
+- SEO optimization (meta tags, structured data)
+- Accessibility compliance (WCAG guidelines)
+
+CRITICAL: Plan for COMPLETE, FUNCTIONAL code. NO placeholder content, NO incomplete sections. Each file must be production-ready.
 
 EXAMPLE FORMAT:
 package.json:{"name":"project-name","version":"1.0.0",...}
 tsconfig.json:{"compilerOptions":{...}}
 index.html:<!DOCTYPE html>...
 
-IMPORTANT: Each file must be complete and properly formatted. Do not include partial code or placeholder content.`;
+IMPORTANT: Each file must be complete and production-ready.`;
   }
 
   getGeneratePrompt(data) {
@@ -221,43 +244,241 @@ IMPORTANT: Each file must be complete and properly formatted. Do not include par
     }
 
     // Fallback to basic generate prompt
-    return `Generate all components and pages for this ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
+    return `Generate a COMPLETE, ENTERPRISE-READY ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
 
 Project: ${data.projectName}
 Description: ${data.description}
 Enabled Features: ${enabledFeatures}
 Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
 
-CRITICAL REQUIREMENTS:
-- Return ONLY clean code files, NO markdown formatting
-- Use proper file extensions (.json, .ts, .tsx, .js, .html, .css)
-- Format each file as: FILENAME:content (no markdown blocks)
-- Each file must be complete and properly formatted
-- Do not include partial code or placeholder content
-- Do not concatenate multiple files together
+🚀 ENTERPRISE REQUIREMENTS:
+- Create a FULLY FUNCTIONAL website with complete content
+- Include ALL necessary components and pages
+- Use realistic, professional content (no Lorem Ipsum)
+- Implement responsive design with mobile-first approach
+- Add proper SEO meta tags and structured data
+- Include error handling and loading states
+- Use modern React patterns with TypeScript
+- Implement accessibility features (ARIA labels, keyboard navigation)
+- Add smooth animations and transitions
+- Include proper form validation and user feedback
 
-Generate the following files:
+📁 REQUIRED FILES WITH COMPLETE CONTENT:
 
-1. **package.json** - Project configuration with dependencies
+1. **package.json** - Complete project configuration with ALL dependencies
 2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
-3. **tailwind.config.js** - Tailwind CSS configuration
+3. **tailwind.config.js** - Tailwind CSS configuration with custom theme
 4. **tsconfig.json** - TypeScript configuration
 5. **tsconfig.node.json** - Node TypeScript configuration
-6. **index.html** - Main HTML file
-7. **src/main.tsx** - React entry point
-8. **src/App.tsx** - Main App component
-9. **src/index.css** - Global styles
-10. **src/components/Header.tsx** - Navigation component
-11. **src/components/Hero.tsx** - Hero section
-12. **src/components/Footer.tsx** - Footer component
-13. **src/components/Products.tsx** - Product showcase (if ecommerce)
+6. **index.html** - Complete HTML with proper meta tags and SEO
+7. **src/main.tsx** - React entry point with error boundaries
+8. **src/App.tsx** - COMPLETE main App component with ALL sections
+9. **src/index.css** - Global styles with Tailwind and custom CSS
+10. **src/components/Header.tsx** - Complete navigation with mobile menu
+11. **src/components/Hero.tsx** - Hero section with compelling content
+12. **src/components/Features.tsx** - Features/benefits section
+13. **src/components/Products.tsx** - Product showcase with grid layout
+14. **src/components/Testimonials.tsx** - Customer testimonials section
+15. **src/components/Contact.tsx** - Contact form with validation
+16. **src/components/Footer.tsx** - Complete footer with links
+17. **src/components/Loading.tsx** - Loading spinner component
+18. **src/components/ErrorBoundary.tsx** - Error boundary component
+
+🎯 CONTENT REQUIREMENTS:
+- Use REAL business names and professional copywriting
+- Include realistic product descriptions and pricing
+- Add customer testimonials with real names and roles
+- Include proper contact information and addresses
+- Use high-quality Unsplash image URLs
+- Add social media integration
+- Include call-to-action buttons throughout
+
+🔧 TECHNICAL REQUIREMENTS:
+- TypeScript strict mode with proper types
+- ESLint configuration for code quality
+- Prettier formatting configuration
+- Responsive design for all screen sizes
+- Performance optimization (lazy loading, code splitting)
+- SEO optimization (meta tags, structured data)
+- Accessibility compliance (WCAG guidelines)
+
+CRITICAL: Generate COMPLETE, FUNCTIONAL code. NO placeholder content, NO incomplete sections, NO "Content will be added here" comments. Each file must be production-ready.
 
 EXAMPLE FORMAT:
 package.json:{"name":"project-name","version":"1.0.0",...}
 src/App.tsx:import React from 'react'...
 index.html:<!DOCTYPE html>...
 
-IMPORTANT: Each file must be complete and properly formatted. Do not include partial code or placeholder content.`;
+IMPORTANT: Each file must be complete and production-ready.`;
+  }
+
+  getGenerateCorePrompt(data) {
+    const stackConfig = this.stackConfig || {};
+    
+    return `Generate ONLY the core configuration files for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
+
+Project: ${data.projectName}
+Description: ${data.description}
+Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
+
+📁 CORE CONFIGURATION FILES:
+
+1. **package.json** - Complete project configuration with ALL dependencies
+2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
+3. **tailwind.config.js** - Tailwind CSS configuration with custom theme
+4. **tsconfig.json** - TypeScript configuration
+5. **tsconfig.node.json** - Node TypeScript configuration
+6. **index.html** - Complete HTML with proper meta tags and SEO
+
+🔧 TECHNICAL REQUIREMENTS:
+- Include ALL necessary dependencies for a production app:
+  * React 18+ with TypeScript
+  * Vite for fast development and building
+  * Tailwind CSS for styling
+  * Framer Motion for animations
+  * React Router for navigation (if multi-page)
+  * Zustand for state management
+  * React Hook Form for form handling
+  * Zod for validation
+  * React Query for data fetching
+  * React Hot Toast for notifications
+  * React Icons for icons
+  * React Intersection Observer for scroll effects
+  * Headless UI for accessible components
+  * ESLint and Prettier for code quality
+  * TypeScript strict mode configuration
+- Proper TypeScript configuration with strict mode
+- Tailwind CSS with custom theme and responsive design
+- SEO-optimized HTML with proper meta tags
+- Build tool configuration for production deployment
+- Error boundaries and loading states
+- Accessibility compliance (WCAG guidelines)
+- Performance optimization (lazy loading, code splitting)
+
+CRITICAL: Generate COMPLETE, FUNCTIONAL configuration files. NO placeholder content.
+
+EXAMPLE FORMAT:
+package.json:{"name":"project-name","version":"1.0.0",...}
+tsconfig.json:{"compilerOptions":{...}}
+index.html:<!DOCTYPE html>...
+
+IMPORTANT: Each file must be complete and production-ready.`;
+  }
+
+  getGenerateComponentsPrompt(data) {
+    const stackConfig = this.stackConfig || {};
+    
+    return `Generate ALL individual components for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
+
+Project: ${data.projectName}
+Description: ${data.description}
+Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
+
+🧩 REQUIRED COMPONENTS:
+
+1. **src/components/Header.tsx** - Complete navigation with mobile menu
+2. **src/components/Hero.tsx** - Hero section with compelling content
+3. **src/components/Features.tsx** - Features/benefits section
+4. **src/components/Products.tsx** - Product showcase with grid layout
+5. **src/components/Testimonials.tsx** - Customer testimonials section
+6. **src/components/Contact.tsx** - Contact form with validation
+7. **src/components/Footer.tsx** - Complete footer with links
+8. **src/components/Loading.tsx** - Loading spinner component
+9. **src/components/ErrorBoundary.tsx** - Error boundary component
+10. **src/components/Button.tsx** - Reusable button component
+11. **src/components/Card.tsx** - Reusable card component
+12. **src/components/Modal.tsx** - Modal component for dialogs
+
+🎯 COMPONENT REQUIREMENTS:
+- Each component must be COMPLETE and FUNCTIONAL
+- Use realistic, professional content (no Lorem Ipsum)
+- Include proper TypeScript types and interfaces
+- Add responsive design for all screen sizes
+- Include accessibility features (ARIA labels, keyboard navigation)
+- Add smooth animations and transitions with Framer Motion
+- Include proper error handling and loading states
+- Use modern React patterns with hooks
+- Implement proper state management with Zustand
+- Add form validation with React Hook Form + Zod
+- Include proper routing with React Router (if multi-page)
+- Add data fetching with React Query
+- Implement proper error boundaries
+- Add loading spinners and skeleton screens
+- Include proper SEO meta tags and structured data
+- Add proper keyboard navigation and focus management
+
+🔧 TECHNICAL REQUIREMENTS:
+- TypeScript strict mode with proper types
+- Responsive design with mobile-first approach
+- Accessibility compliance (WCAG guidelines)
+- Performance optimization (memo, lazy loading)
+- Proper prop validation and default values
+- Clean, commented code with JSDoc
+
+CRITICAL: Generate COMPLETE, FUNCTIONAL components. NO placeholder content, NO incomplete sections.
+
+EXAMPLE FORMAT:
+src/components/Header.tsx:import React from 'react'...
+src/components/Hero.tsx:import React from 'react'...
+
+IMPORTANT: Each component must be complete and production-ready.`;
+  }
+
+  getGenerateIntegrationPrompt(data) {
+    const stackConfig = this.stackConfig || {};
+    
+    return `Generate the main App integration that brings ALL components together for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
+
+Project: ${data.projectName}
+Description: ${data.description}
+Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
+
+🔗 MAIN APP INTEGRATION FILES:
+
+1. **src/App.tsx** - COMPLETE main App component that integrates ALL sections
+2. **src/main.tsx** - React entry point with error boundaries
+3. **src/index.css** - Global styles with Tailwind and custom CSS
+4. **src/types/index.ts** - TypeScript types and interfaces
+5. **src/utils/index.ts** - Utility functions and helpers
+6. **src/hooks/index.ts** - Custom React hooks
+7. **src/context/AppContext.tsx** - Global state management
+8. **src/services/api.ts** - API service functions
+9. **src/constants/index.ts** - Application constants
+10. **src/assets/** - Images and static assets
+11. **src/styles/** - Additional CSS modules
+12. **src/layouts/** - Layout components
+13. **src/pages/** - Page components (if needed)
+14. **src/routes/** - Routing configuration
+15. **src/store/** - State management (Zustand/Redux)
+16. **src/middleware/** - Custom middleware
+17. **src/validators/** - Form validation schemas
+18. **src/helpers/** - Helper functions
+
+🎯 INTEGRATION REQUIREMENTS:
+- App.tsx must import and use ALL generated components
+- Create a COMPLETE, FUNCTIONAL website layout
+- Include proper routing and state management
+- Add smooth page transitions and animations
+- Include error boundaries and loading states
+- Add proper SEO meta tags and structured data
+- Include accessibility features throughout
+- Add proper form validation and user feedback
+
+🔧 TECHNICAL REQUIREMENTS:
+- TypeScript strict mode with proper types
+- Responsive design with mobile-first approach
+- Performance optimization (lazy loading, code splitting)
+- SEO optimization (meta tags, structured data)
+- Accessibility compliance (WCAG guidelines)
+- Error handling and user experience optimization
+
+CRITICAL: Generate COMPLETE, FUNCTIONAL integration. NO placeholder content, NO incomplete sections.
+
+EXAMPLE FORMAT:
+src/App.tsx:import React from 'react'...
+src/main.tsx:import React from 'react'...
+
+IMPORTANT: Each file must be complete and production-ready.`;
   }
 
   getValidatePrompt(data) {
@@ -373,13 +594,13 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
   async generateProject(userPrompt, projectName = 'generated-project') {
     const startTime = Date.now();
     this.session.currentStep = 0;
-    this.session.totalSteps = 6;
+    this.session.totalSteps = 8; // Increased steps for better planning
     
     console.log(`🚀 Starting project generation: ${projectName}`);
     console.log(`📋 User Request: ${userPrompt}`);
     
     try {
-      // Step 1: Analyze
+      // Step 1: Analyze (Enhanced)
       this.updateProgress(5, '📋 Analyzing project requirements...');
       const analyzeResult = await this.executeModularClaudeCall('analyze', { userPrompt, projectName }, 4096);
       
@@ -388,23 +609,39 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         throw new Error('Failed to analyze project requirements');
       }
       
-      // Step 2: Plan
-      this.updateProgress(20, '⚙️ Planning project structure...');
+      // Step 2: Plan (Enhanced with detailed structure)
+      this.updateProgress(15, '⚙️ Planning project structure...');
       const planResult = await this.executeModularClaudeCall('plan', { 
         ...analysis, 
         projectName, 
         userPrompt 
       }, 8192);
       
-      // Step 3: Generate
-      this.updateProgress(40, '📄 Generating pages and components...');
-      const generateResult = await this.executeModularClaudeCall('generate', { 
+      // Step 3: Generate Core Files
+      this.updateProgress(30, '📄 Generating core configuration files...');
+      const coreResult = await this.executeModularClaudeCall('generate-core', { 
         ...analysis, 
         projectName, 
         userPrompt 
       }, 8192);
       
-      // Step 4: Compose
+      // Step 4: Generate Components
+      this.updateProgress(50, '🧩 Generating components and pages...');
+      const componentsResult = await this.executeModularClaudeCall('generate-components', { 
+        ...analysis, 
+        projectName, 
+        userPrompt 
+      }, 8192);
+      
+      // Step 5: Generate App Integration
+      this.updateProgress(70, '🔗 Integrating components into main app...');
+      const integrationResult = await this.executeModularClaudeCall('generate-integration', { 
+        ...analysis, 
+        projectName, 
+        userPrompt 
+      }, 8192);
+      
+      // Step 6: Create Documentation
       this.updateProgress(80, '📚 Creating documentation...');
       const composeResult = await this.executeModularClaudeCall('compose', { 
         ...analysis, 
@@ -412,7 +649,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         userPrompt 
       }, 4096);
       
-      // Step 5: Validate
+      // Step 7: Validate
       this.updateProgress(90, '✅ Validating project quality...');
       const validateResult = await this.executeModularClaudeCall('validate', { 
         ...analysis, 
@@ -420,7 +657,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         userPrompt 
       }, 4096);
       
-      // Step 6: Improve
+      // Step 8: Improve
       this.updateProgress(95, '🔧 Improving project quality...');
       const improveResult = await this.executeModularClaudeCall('improve', { 
         ...analysis, 
@@ -434,7 +671,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
       return {
         success: true,
         projectName,
-        files: this.extractAllFiles([planResult, generateResult, composeResult, improveResult]),
+        files: this.extractAllFiles([coreResult, componentsResult, integrationResult, composeResult, improveResult]),
         sessionId: this.session.sessionId,
         totalTime: totalTime / 1000
       };
@@ -797,13 +1034,18 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
     
     // 1. Check for required files
     const requiredFiles = this.getRequiredFiles();
-    const missingFiles = requiredFiles.filter(file => !this.session.generatedFiles[file]);
+    const missingFiles = requiredFiles.required.filter(file => !this.session.generatedFiles[file]);
     
     if (missingFiles.length > 0) {
       this.session.errors.push(`Missing required files: ${missingFiles.join(', ')}`);
       return false;
     }
     console.log('✅ All required files present');
+
+    // 2. Validate complete file structure (enterprise-level)
+    if (!await this.validateCompleteFileStructure()) {
+      console.log('⚠️ File structure validation failed - missing enterprise features');
+    }
 
     // 2. Validate package.json structure and dependencies
     if (!await this.validatePackageJson()) {
@@ -845,44 +1087,123 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
     return true;
   }
 
-  getRequiredFiles() {
-    const baseFiles = ['package.json'];
+  async validateCompleteFileStructure() {
+    console.log('🔍 Validating complete file structure...');
     
-    switch (this.stackConfig.framework) {
-      case 'react':
-        return [
-          ...baseFiles,
-          'vite.config.ts',
-          'tsconfig.json', 
-          'tailwind.config.js',
-          'index.html',
-          'src/main.tsx',
-          'src/App.tsx',
-          'src/index.css'
-        ];
-      case 'nextjs':
-        return [
-          ...baseFiles,
-          'next.config.js',
-          'tsconfig.json',
-          'tailwind.config.js',
-          'app/layout.tsx',
-          'app/page.tsx',
-          'app/globals.css'
-        ];
-      case 'remix':
-        return [
-          ...baseFiles,
-          'remix.config.js',
-          'tsconfig.json',
-          'tailwind.config.js',
-          'app/root.tsx',
-          'app/routes/_index.tsx',
-          'app/tailwind.css'
-        ];
-      default:
-        return baseFiles;
+    const requiredFiles = this.getRequiredFiles();
+    const generatedFiles = Object.keys(this.session.generatedFiles || {});
+    
+    // Check required files
+    const missingRequired = requiredFiles.required.filter(file => !generatedFiles.includes(file));
+    const missingOptional = requiredFiles.optional.filter(file => !generatedFiles.includes(file));
+    
+    // Check for enterprise-level requirements
+    const enterpriseChecks = {
+      hasErrorBoundary: generatedFiles.includes('src/components/ErrorBoundary.tsx'),
+      hasLoadingStates: generatedFiles.includes('src/components/Loading.tsx'),
+      hasStateManagement: generatedFiles.includes('src/context/AppContext.tsx') || generatedFiles.includes('src/store/index.ts'),
+      hasFormValidation: generatedFiles.includes('src/validators/index.ts'),
+      hasAPI: generatedFiles.includes('src/services/api.ts'),
+      hasTypes: generatedFiles.includes('src/types/index.ts'),
+      hasUtils: generatedFiles.includes('src/utils/index.ts'),
+      hasHooks: generatedFiles.includes('src/hooks/index.ts'),
+      hasConstants: generatedFiles.includes('src/constants/index.ts'),
+      hasHelpers: generatedFiles.includes('src/helpers/index.ts'),
+      hasCompleteComponents: [
+        'src/components/Header.tsx',
+        'src/components/Hero.tsx',
+        'src/components/Features.tsx',
+        'src/components/Products.tsx',
+        'src/components/Testimonials.tsx',
+        'src/components/Contact.tsx',
+        'src/components/Footer.tsx'
+      ].every(file => generatedFiles.includes(file))
+    };
+    
+    const failedChecks = Object.entries(enterpriseChecks)
+      .filter(([_, passed]) => !passed)
+      .map(([check, _]) => check);
+    
+    // Report results
+    if (missingRequired.length > 0) {
+      console.log(`❌ Missing required files: ${missingRequired.join(', ')}`);
+      this.session.errors.push(`Missing required files: ${missingRequired.join(', ')}`);
     }
+    
+    if (missingOptional.length > 0) {
+      console.log(`⚠️ Missing optional files: ${missingOptional.join(', ')}`);
+      this.session.warnings.push(`Missing optional files: ${missingOptional.join(', ')}`);
+    }
+    
+    if (failedChecks.length > 0) {
+      console.log(`⚠️ Missing enterprise features: ${failedChecks.join(', ')}`);
+      this.session.warnings.push(`Missing enterprise features: ${failedChecks.join(', ')}`);
+    }
+    
+    const allChecksPassed = missingRequired.length === 0 && failedChecks.length === 0;
+    
+    if (allChecksPassed) {
+      console.log('✅ Complete file structure validation passed');
+    }
+    
+    return allChecksPassed;
+  }
+
+  getRequiredFiles() {
+    const baseFiles = [
+      'package.json',
+      'vite.config.ts',
+      'tailwind.config.js',
+      'tsconfig.json',
+      'tsconfig.node.json',
+      'index.html',
+      'src/main.tsx',
+      'src/App.tsx',
+      'src/index.css'
+    ];
+
+    const componentFiles = [
+      'src/components/Header.tsx',
+      'src/components/Hero.tsx',
+      'src/components/Features.tsx',
+      'src/components/Products.tsx',
+      'src/components/Testimonials.tsx',
+      'src/components/Contact.tsx',
+      'src/components/Footer.tsx',
+      'src/components/Loading.tsx',
+      'src/components/ErrorBoundary.tsx',
+      'src/components/Button.tsx',
+      'src/components/Card.tsx',
+      'src/components/Modal.tsx'
+    ];
+
+    const utilityFiles = [
+      'src/types/index.ts',
+      'src/utils/index.ts',
+      'src/hooks/index.ts',
+      'src/context/AppContext.tsx',
+      'src/services/api.ts',
+      'src/constants/index.ts',
+      'src/validators/index.ts',
+      'src/helpers/index.ts'
+    ];
+
+    const optionalFiles = [
+      'src/layouts/MainLayout.tsx',
+      'src/pages/Home.tsx',
+      'src/routes/index.tsx',
+      'src/store/index.ts',
+      'src/middleware/index.ts',
+      'src/styles/components.css',
+      'src/assets/images/',
+      'README.md'
+    ];
+
+    return {
+      required: [...baseFiles, ...componentFiles, ...utilityFiles],
+      optional: optionalFiles,
+      all: [...baseFiles, ...componentFiles, ...utilityFiles, ...optionalFiles]
+    };
   }
 
   async validatePackageJson() {
@@ -1211,6 +1532,12 @@ IMPORTANT:
         return this.getPlanPrompt(data);
       case 'generate':
         return this.getGeneratePrompt(data);
+      case 'generate-core':
+        return this.getGenerateCorePrompt(data);
+      case 'generate-components':
+        return this.getGenerateComponentsPrompt(data);
+      case 'generate-integration':
+        return this.getGenerateIntegrationPrompt(data);
       case 'validate':
         return this.getValidatePrompt(data);
       case 'compose':
