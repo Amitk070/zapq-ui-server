@@ -8,6 +8,8 @@ import uploadRouter from './upload.js';
 import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
 import { OrchestrationEngine } from './OrchestrationEngine.js';
 import { getStackConfig, getAllStacks } from './stackConfigs.js';
+import { EnhancedBackendAPI } from './EnhancedBackendAPI.mjs';
+import { BuildValidationAPI } from './buildValidationAPI.js';
 
 // Inline the utils functions to avoid ES module conflicts
 function findBestFileToEdit(userPrompt, availableFiles) {
@@ -205,8 +207,17 @@ app.post('/orchestrate-project', async (req, res) => {
   try {
     console.log(`🏗️ Starting orchestrated project generation: ${projectName} (${stackId})`);
     
+    // Get stack configuration
+    const stackConfig = getStackConfig(stackId);
+    if (!stackConfig) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Invalid stackId: ${stackId}` 
+      });
+    }
+    
     // Create orchestration engine instance
-    const engine = new OrchestrationEngine(stackId, askClaude);
+    const engine = new OrchestrationEngine(stackId, askClaude, stackConfig);
     
     // Progress tracking (for future WebSocket implementation)
     const progressCallback = (step, progress) => {
@@ -609,6 +620,12 @@ Make minimal, focused changes that directly address the user's request while pre
   }
 });
 
+const enhancedAPI = new EnhancedBackendAPI();
+const buildValidationAPI = new BuildValidationAPI();
+
+enhancedAPI.setupRoutes(app);
+buildValidationAPI.setupRoutes(app);
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 NEW ARCHITECTURE: Claude backend running on port ${PORT}`);
@@ -622,12 +639,3 @@ app.listen(PORT, () => {
   console.log(`  DELETE /api/validate-build/:validationId`);
   console.log(`  GET  /api/validate-build/:validationId/preview`);
 }); 
-
-import { EnhancedBackendAPI } from './EnhancedBackendAPI.mjs';
-import { BuildValidationAPI } from './buildValidationAPI.js';
-
-const enhancedAPI = new EnhancedBackendAPI();
-const buildValidationAPI = new BuildValidationAPI();
-
-enhancedAPI.setupRoutes(app);
-buildValidationAPI.setupRoutes(app); 

@@ -2,8 +2,10 @@ import { getStackConfig } from './stackConfigs.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class OrchestrationEngine {
-  constructor(sessionId = null) {
+  constructor(sessionId = null, askClaudeFunction = null, stackConfig = null) {
     this.sessionId = sessionId || uuidv4();
+    this.askClaude = askClaudeFunction;
+    this.stackConfig = stackConfig;
     this.session = {
       sessionId: this.sessionId,
       history: [],
@@ -22,6 +24,10 @@ export class OrchestrationEngine {
   async askClaudeWithSession(prompt, maxTokens = 2048, context = {}) {
     const sessionContext = this.buildSessionContext(context);
     const enhancedPrompt = this.enhancePromptWithHistory(prompt, sessionContext);
+    
+    if (!this.askClaude) {
+      throw new Error('askClaude function not provided to OrchestrationEngine');
+    }
     
     const result = await this.askClaude(enhancedPrompt, maxTokens);
     
@@ -558,6 +564,19 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
     }
     
     return files;
+  }
+
+  extractAllFiles(results) {
+    const allFiles = {};
+    
+    for (const result of results) {
+      if (result && result.output) {
+        const files = this.extractFilesFromText(result.output);
+        Object.assign(allFiles, files);
+      }
+    }
+    
+    return allFiles;
   }
 
   // Enhanced validation methods
