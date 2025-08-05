@@ -21,7 +21,7 @@ export class OrchestrationEngine {
   }
 
   // Enhanced Claude call with session history and context
-  async askClaudeWithSession(prompt, maxTokens = 2048, context = {}) {
+  async askClaudeWithSession(prompt, maxTokens = 8192, context = {}) {
     const sessionContext = this.buildSessionContext(context);
     const enhancedPrompt = this.enhancePromptWithHistory(prompt, sessionContext);
     
@@ -93,7 +93,7 @@ export class OrchestrationEngine {
   }
 
   // Modular Claude call with intent-based execution
-  async executeModularClaudeCall(intent, data, maxTokens = 2048) {
+  async executeModularClaudeCall(intent, data, maxTokens = 8192) {
     const prompt = this.getPromptForIntent(intent, data);
     const sessionContext = this.buildSessionContext();
     
@@ -364,7 +364,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
     try {
       // Step 1: Analyze
       this.updateProgress(5, '📋 Analyzing project requirements...');
-      const analyzeResult = await this.executeModularClaudeCall('analyze', { userPrompt, projectName }, 2048);
+      const analyzeResult = await this.executeModularClaudeCall('analyze', { userPrompt, projectName }, 4096);
       
       const analysis = this.parseJSON(analyzeResult.output);
       if (!analysis) {
@@ -377,7 +377,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         ...analysis, 
         projectName, 
         userPrompt 
-      }, 1536);
+      }, 8192);
       
       // Step 3: Generate
       this.updateProgress(40, '📄 Generating pages and components...');
@@ -385,7 +385,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         ...analysis, 
         projectName, 
         userPrompt 
-      }, 1536);
+      }, 16384);
       
       // Step 4: Compose
       this.updateProgress(80, '📚 Creating documentation...');
@@ -393,7 +393,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         ...analysis, 
         projectName, 
         userPrompt 
-      }, 1024);
+      }, 4096);
       
       // Step 5: Validate
       this.updateProgress(90, '✅ Validating project quality...');
@@ -401,7 +401,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         ...analysis, 
         projectName, 
         userPrompt 
-      }, 1024);
+      }, 4096);
       
       // Step 6: Improve
       this.updateProgress(95, '🔧 Improving project quality...');
@@ -409,7 +409,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         ...analysis, 
         projectName, 
         userPrompt 
-      }, 1024);
+      }, 8192);
       
       const totalTime = Date.now() - startTime;
       console.log(`🎉 Project generation completed in ${(totalTime / 1000).toFixed(1)}s`);
@@ -478,7 +478,7 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
   }
 
   // Legacy compatibility methods
-  async askClaudeWithTracking(prompt, maxTokens = 2048) {
+  async askClaudeWithTracking(prompt, maxTokens = 8192) {
     return await this.askClaudeWithSession(prompt, maxTokens);
   }
 

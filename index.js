@@ -416,7 +416,7 @@ app.post('/save', (req, res) => {
 });
 
 // Enhanced askClaude function with rate limiting and retry logic
-async function askClaude(prompt, max_tokens = 2048, retryCount = 0) {
+async function askClaude(prompt, max_tokens = 8192, retryCount = 0) {
   const maxRetries = 3;
   const baseDelay = 60000; // 1 minute base delay
   
