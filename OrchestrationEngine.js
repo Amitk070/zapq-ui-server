@@ -375,6 +375,7 @@ Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.
 10. **src/components/Button.tsx** - Reusable button component
 11. **src/components/Card.tsx** - Reusable card component
 12. **src/components/Modal.tsx** - Modal component for dialogs
+13. **src/components/SEO.tsx** - SEO optimization component
 
 🎯 COMPONENT REQUIREMENTS:
 - Each component must be COMPLETE and FUNCTIONAL
@@ -889,8 +890,11 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
     const specificFiles = [
       'package.json', 'vite.config.ts', 'tailwind.config.js', 'tsconfig.json', 'tsconfig.node.json',
       'index.html', 'src/main.tsx', 'src/App.tsx', 'src/index.css',
-      'src/components/Header.tsx', 'src/components/Hero.tsx', 
-      'src/components/Footer.tsx', 'src/components/Products.tsx'
+      'src/components/Header.tsx', 'src/components/Hero.tsx', 'src/components/Features.tsx',
+      'src/components/Products.tsx', 'src/components/Testimonials.tsx', 'src/components/Contact.tsx',
+      'src/components/Footer.tsx', 'src/components/Loading.tsx', 'src/components/ErrorBoundary.tsx',
+      'src/components/Button.tsx', 'src/components/Card.tsx', 'src/components/Modal.tsx',
+      'src/components/SEO.tsx', 'src/components/Sidebar.tsx'
     ];
     for (const fileName of specificFiles) {
       if (processedFiles.has(fileName)) continue;
@@ -1171,7 +1175,8 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
       'src/components/ErrorBoundary.tsx',
       'src/components/Button.tsx',
       'src/components/Card.tsx',
-      'src/components/Modal.tsx'
+      'src/components/Modal.tsx',
+      'src/components/SEO.tsx'
     ];
 
     const utilityFiles = [
@@ -1227,6 +1232,14 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
       for (const dep of frameworkDeps) {
         if (!packageJson.dependencies[dep] && !packageJson.devDependencies[dep]) {
           this.session.warnings.push(`Missing essential dependency: ${dep}`);
+        }
+      }
+      
+      // Check for commonly used React dependencies
+      const commonReactDeps = ['react-router-dom', 'react-error-boundary', 'framer-motion'];
+      for (const dep of commonReactDeps) {
+        if (!packageJson.dependencies[dep] && !packageJson.devDependencies[dep]) {
+          this.session.warnings.push(`Missing commonly used dependency: ${dep}`);
         }
       }
       

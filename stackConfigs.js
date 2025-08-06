@@ -75,6 +75,45 @@ export const STACK_CONFIGS = [
     language: 'typescript',
     icon: '⚛️',
     projectTypes: ['landing', 'dashboard', 'portfolio', 'marketing', 'saas'],
+
+    requiredComponents: [
+      {
+        name: 'Hero',
+        blueprint: {
+          layout: 'centered',
+          cta: true,
+          gradientBackground: true,
+          animation: 'fade-in',
+          accessibility: true
+        }
+      },
+      {
+        name: 'Footer',
+        blueprint: {
+          layout: '3-column',
+          links: true,
+          newsletter: true,
+          socialIcons: true,
+          darkModeSupport: true
+        }
+      },
+      {
+        name: 'SEO',
+        blueprint: {
+          dynamicTitle: true,
+          metaTags: true,
+          openGraphSupport: true
+        }
+      },
+      {
+        name: 'ErrorBoundary',
+        blueprint: {
+          fallbackUI: true,
+          errorLogging: true
+        }
+      }
+    ],
+
     
     templates: {
       packageJson: {
