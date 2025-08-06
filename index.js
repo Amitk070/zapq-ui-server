@@ -575,6 +575,18 @@ function cleanClaudeResponse(raw) {
   
   return jsonStr;
 }
+// Add this after your other routes
+app.get('/debug-api-key', (req, res) => {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  
+  res.json({
+    success: true,
+    hasKey: !!apiKey,
+    keyLength: apiKey ? apiKey.length : 0,
+    keyPrefix: apiKey ? apiKey.substring(0, 7) : 'none',
+    isValidFormat: apiKey ? apiKey.startsWith('sk-ant-') && apiKey.length > 40 : false
+  });
+});
 
 app.post('/claude-project', async (req, res) => {
   const { projectPath } = req.body;
