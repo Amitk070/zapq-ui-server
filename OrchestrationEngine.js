@@ -314,15 +314,15 @@ IMPORTANT: Each file must be complete and production-ready.`;
 
   getGenerateCorePrompt(data) {
     const stackConfig = this.stackConfig || {};
-    
-    return `Generate ONLY the core configuration files for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
+    return `IMPORTANT: DO NOT use markdown formatting, DO NOT use code blocks, DO NOT include any explanations or commentary. DO NOT wrap any output in triple backticks. Return ONLY the files in the format: FILENAME:content
+
+Generate ONLY the core configuration files for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
 
 Project: ${data.projectName}
 Description: ${data.description}
 Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
 
 📁 CORE CONFIGURATION FILES:
-
 1. **package.json** - Complete project configuration with ALL dependencies
 2. **${stackConfig.buildTool === 'vite' ? 'vite.config.ts' : 'next.config.js'}** - Build configuration
 3. **tailwind.config.js** - Tailwind CSS configuration with custom theme
@@ -340,27 +340,29 @@ Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.
 - Accessibility compliance (WCAG guidelines)
 - Performance optimization (lazy loading, code splitting)
 
-CRITICAL: Generate COMPLETE, FUNCTIONAL configuration files. NO placeholder content.
+CRITICAL: Generate COMPLETE, FUNCTIONAL configuration files. NO placeholder content. NO incomplete files. NO explanations. NO markdown. NO code blocks.
+
+For JSON files, return valid JSON only (no comments, no trailing commas, no explanations).
 
 EXAMPLE FORMAT:
 package.json:{"name":"project-name","version":"1.0.0",...}
 tsconfig.json:{"compilerOptions":{...}}
 index.html:<!DOCTYPE html>...
 
-IMPORTANT: Each file must be complete and production-ready.`;
+IMPORTANT: Each file must be complete and production-ready. DO NOT output any text except the files in the specified format. DO NOT include any summary, commentary, or explanation. DO NOT wrap any output in triple backticks or code blocks.`;
   }
 
   getGenerateComponentsPrompt(data) {
     const stackConfig = this.stackConfig || {};
-    
-    return `Generate ALL individual components for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
+    return `IMPORTANT: DO NOT use markdown formatting, DO NOT use code blocks, DO NOT include any explanations or commentary. DO NOT wrap any output in triple backticks. Return ONLY the files in the format: FILENAME:content
+
+Generate ALL individual components for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
 
 Project: ${data.projectName}
 Description: ${data.description}
 Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
 
 🧩 REQUIRED COMPONENTS:
-
 1. **src/components/Header.tsx** - Complete navigation with mobile menu
 2. **src/components/Hero.tsx** - Hero section with compelling content
 3. **src/components/Features.tsx** - Features/benefits section
@@ -396,26 +398,26 @@ Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.
 - Proper prop validation and default values
 - Clean, commented code with JSDoc
 
-CRITICAL: Generate COMPLETE, FUNCTIONAL components. NO placeholder content, NO incomplete sections.
+CRITICAL: Generate COMPLETE, FUNCTIONAL components. NO placeholder content, NO incomplete sections, NO explanations, NO markdown, NO code blocks.
 
 EXAMPLE FORMAT:
 src/components/Header.tsx:import React from 'react'...
 src/components/Hero.tsx:import React from 'react'...
 
-IMPORTANT: Each component must be complete and production-ready.`;
+IMPORTANT: Each file must be complete and production-ready. DO NOT output any text except the files in the specified format. DO NOT include any summary, commentary, or explanation. DO NOT wrap any output in triple backticks or code blocks.`;
   }
 
   getGenerateIntegrationPrompt(data) {
     const stackConfig = this.stackConfig || {};
-    
-    return `Generate the main App integration that brings ALL components together for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
+    return `IMPORTANT: DO NOT use markdown formatting, DO NOT use code blocks, DO NOT include any explanations or commentary. DO NOT wrap any output in triple backticks. Return ONLY the files in the format: FILENAME:content
+
+Generate the main App integration that brings ALL components together for a ${data.projectType} project using ${stackConfig.framework} with ${stackConfig.buildTool}.
 
 Project: ${data.projectName}
 Description: ${data.description}
 Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.styling} + ${stackConfig.language}
 
 🔗 MAIN APP INTEGRATION FILES:
-
 1. **src/App.tsx** - COMPLETE main App component that integrates ALL sections
 2. **src/main.tsx** - React entry point with error boundaries
 3. **src/index.css** - Global styles with Tailwind and custom CSS
@@ -453,13 +455,13 @@ Tech Stack: ${stackConfig.framework} + ${stackConfig.buildTool} + ${stackConfig.
 - Accessibility compliance (WCAG guidelines)
 - Error handling and user experience optimization
 
-CRITICAL: Generate COMPLETE, FUNCTIONAL integration. NO placeholder content, NO incomplete sections.
+CRITICAL: Generate COMPLETE, FUNCTIONAL integration. NO placeholder content, NO incomplete sections, NO explanations, NO markdown, NO code blocks.
 
 EXAMPLE FORMAT:
 src/App.tsx:import React from 'react'...
 src/main.tsx:import React from 'react'...
 
-IMPORTANT: Each file must be complete and production-ready.`;
+IMPORTANT: Each file must be complete and production-ready. DO NOT output any text except the files in the specified format. DO NOT include any summary, commentary, or explanation. DO NOT wrap any output in triple backticks or code blocks.`;
   }
 
   getValidatePrompt(data) {
@@ -823,21 +825,17 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
   extractFilesFromText(text) {
     const files = {};
     const processedFiles = new Set();
-    
+    const debugRejected = {};
     // Clean the text first
     const cleanedText = text.trim();
-    
     // Split the text into lines and process each file
     const lines = cleanedText.split('\n');
     let currentFile = null;
     let currentContent = [];
-    
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
       // Check if this line starts a new file
       const fileMatch = line.match(/^([a-zA-Z0-9\/\-_\.]+\.(tsx?|jsx?|html|css|json|js|md)):\s*(.*)$/);
-      
       if (fileMatch) {
         // Save the previous file if it exists
         if (currentFile && currentContent.length > 0) {
@@ -851,7 +849,6 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
             }
           }
         }
-        
         // Start new file
         currentFile = fileMatch[1];
         currentContent = [fileMatch[3] || '']; // Include any content on the same line
@@ -860,7 +857,6 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         currentContent.push(line);
       }
     }
-    
     // Save the last file
     if (currentFile && currentContent.length > 0) {
       const correctedPath = this.correctFileExtension(currentFile);
@@ -873,18 +869,15 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         }
       }
     }
-    
     // Secondary pattern: Code blocks with file paths
     const codeBlockPattern = /```(?:(\w+):([^\n]+)\n)?([\s\S]*?)```/g;
     let match;
-    
     while ((match = codeBlockPattern.exec(cleanedText)) !== null) {
       const [, language, filePath, content] = match;
       if (filePath && content) {
         const cleanPath = filePath.trim();
         const cleanContent = content.trim();
         const correctedPath = this.correctFileExtension(cleanPath);
-        
         if (!processedFiles.has(correctedPath)) {
           files[correctedPath] = cleanContent;
           processedFiles.add(correctedPath);
@@ -892,7 +885,6 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         }
       }
     }
-    
     // Fallback: Look for specific file patterns
     const specificFiles = [
       'package.json', 'vite.config.ts', 'tailwind.config.js', 'tsconfig.json', 'tsconfig.node.json',
@@ -900,15 +892,12 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
       'src/components/Header.tsx', 'src/components/Hero.tsx', 
       'src/components/Footer.tsx', 'src/components/Products.tsx'
     ];
-    
     for (const fileName of specificFiles) {
       if (processedFiles.has(fileName)) continue;
-      
       // Look for the file name followed by content
       const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const fileRegex = new RegExp(`${escapedFileName}\\s*:\\s*([\\s\\S]*?)(?=\\n\\n|$)`, 'g');
       const fileMatch = fileRegex.exec(cleanedText);
-      
       if (fileMatch && fileMatch[1]) {
         const cleanContent = fileMatch[1].trim();
         if (cleanContent && !cleanContent.includes(':')) { // Avoid nested file content
@@ -918,17 +907,23 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
         }
       }
     }
-    
     // Validate and clean extracted files
     const validatedFiles = {};
     for (const [filePath, content] of Object.entries(files)) {
       if (this.isValidFileContent(filePath, content)) {
         validatedFiles[filePath] = this.cleanFileContent(content);
       } else {
+        debugRejected[filePath] = content;
         console.log(`⚠️ Skipping invalid file: ${filePath}`);
       }
     }
-    
+    // Log all rejected files for debugging
+    if (Object.keys(debugRejected).length > 0) {
+      console.log('🪲 Debug: Rejected files:', Object.keys(debugRejected));
+      for (const [file, raw] of Object.entries(debugRejected)) {
+        console.log(`🪲 Raw content for ${file}:\n${raw.substring(0, 500)}${raw.length > 500 ? '... (truncated)' : ''}`);
+      }
+    }
     console.log(`✅ Extracted ${Object.keys(validatedFiles).length} valid files`);
     return validatedFiles;
   }
@@ -953,11 +948,32 @@ IMPORTANT: Return ONLY valid JSON with improved code files. Do not include any e
     if (!content || content.length < 10) return false;
     
     if (filePath.endsWith('.json')) {
+      // Try to parse as-is
       try {
         JSON.parse(content);
         return true;
       } catch {
-        return false;
+        // Try to fix common JSON issues
+        let fixed = content
+          .replace(/,\s*[}\]]/g, '$1') // Remove trailing commas
+          .replace(/'/g, '"'); // Single to double quotes
+        // Remove any leading non-JSON text
+        const jsonStart = fixed.indexOf('{');
+        if (jsonStart > 0) fixed = fixed.substring(jsonStart);
+        try {
+          JSON.parse(fixed);
+          return true;
+        } catch {
+          // Try to extract JSON from text
+          const jsonMatch = fixed.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              JSON.parse(jsonMatch[0]);
+              return true;
+            } catch {}
+          }
+          return false;
+        }
       }
     }
     
