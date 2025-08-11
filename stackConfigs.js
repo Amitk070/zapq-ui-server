@@ -72,7 +72,7 @@ export const STACK_CONFIGS = [
           lint: 'eslint .',
           typecheck: 'tsc --noEmit',
           test: 'vitest',
-          test:ui: 'vitest --ui'
+          'test:ui': 'vitest --ui'
         },
         dependencies: {
           react: '^18.3.1',
