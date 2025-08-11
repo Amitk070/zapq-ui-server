@@ -628,7 +628,38 @@ async function askClaude(prompt, max_tokens = 2048, retryCount = 0) {
     if (!result.ok) {
       const errorText = await result.text();
       console.error('❌ Error details:', errorText);
-      throw new Error(`Claude API failed: ${result.status} ${result.statusText}`);
+      
+      // Parse error response for better error messages
+      let errorMessage = `Claude API failed: ${result.status} ${result.statusText}`;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error?.message) {
+          errorMessage = errorData.error.message;
+        }
+        
+        // Handle specific error types
+        if (errorData.error?.type === 'invalid_request_error') {
+          if (errorData.error.message.includes('credit balance is too low')) {
+            errorMessage = 'Claude API credit balance is too low. Please upgrade your plan or purchase credits.';
+          } else if (errorData.error.message.includes('rate limit')) {
+            errorMessage = 'Claude API rate limit exceeded. Please try again later.';
+          } else if (errorData.error.message.includes('invalid api key')) {
+            errorMessage = 'Invalid Claude API key. Please check your configuration.';
+          }
+        }
+      } catch (parseError) {
+        // If we can't parse the error, use the raw text
+        if (errorText.includes('credit balance is too low')) {
+          errorMessage = 'Claude API credit balance is too low. Please upgrade your plan or purchase credits.';
+        } else if (errorText.includes('rate limit')) {
+          errorMessage = 'Claude API rate limit exceeded. Please try again later.';
+        } else if (errorText.includes('invalid api key')) {
+          errorMessage = 'Invalid Claude API key. Please check your configuration.';
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const raw = await result.json();
@@ -710,6 +741,95 @@ function cleanClaudeResponse(raw) {
   
   return jsonStr;
 }
+// Add this after your other routes
+app.get('/api-status', async (req, res) => {
+  try {
+    // Check if API key is available
+    const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
+    
+    if (!hasApiKey) {
+      return res.json({
+        success: false,
+        status: 'no_api_key',
+        message: 'No Claude API key configured',
+        instructions: 'Please set ANTHROPIC_API_KEY in your environment variables'
+      });
+    }
+
+    // Test a minimal API call to check credit status
+    try {
+      const testResult = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 10,
+          messages: [{ role: 'user', content: 'Hello' }]
+        })
+      });
+
+      if (testResult.ok) {
+        return res.json({
+          success: true,
+          status: 'api_working',
+          message: 'Claude API is working correctly',
+          apiKey: process.env.ANTHROPIC_API_KEY ? 'Configured' : 'Missing'
+        });
+      } else {
+        const errorText = await testResult.text();
+        
+        if (errorText.includes('credit balance is too low')) {
+          return res.json({
+            success: false,
+            status: 'insufficient_credits',
+            message: 'Claude API credit balance is too low',
+            instructions: 'Please go to Anthropic Plans & Billing to upgrade or purchase credits',
+            errorCode: testResult.status,
+            errorDetails: errorText
+          });
+        } else if (errorText.includes('invalid api key')) {
+          return res.json({
+            success: false,
+            status: 'invalid_api_key',
+            message: 'Invalid Claude API key',
+            instructions: 'Please check your ANTHROPIC_API_KEY configuration',
+            errorCode: testResult.status,
+            errorDetails: errorText
+          });
+        } else {
+          return res.json({
+            success: false,
+            status: 'api_error',
+            message: 'Claude API error',
+            instructions: 'Please check the error details below',
+            errorCode: testResult.status,
+            errorDetails: errorText
+          });
+        }
+      }
+    } catch (apiError) {
+      return res.json({
+        success: false,
+        status: 'api_connection_error',
+        message: 'Failed to connect to Claude API',
+        instructions: 'Please check your internet connection and API key',
+        error: apiError.message
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      status: 'server_error',
+      message: 'Server error while checking API status',
+      error: error.message
+    });
+  }
+});
+
 // Add this after your other routes
 app.get('/debug-api-key', (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
