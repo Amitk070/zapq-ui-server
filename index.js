@@ -4,6 +4,8 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import uploadRouter from './upload.js';
 import { buildClaudeProjectPrompt } from './buildClaudeProjectPrompt.js';
 import { OrchestrationEngine } from './OrchestrationEngine.js';
@@ -114,6 +116,54 @@ if (!API_KEY) {
 const safeApiKey = API_KEY;
 
 const app = express();
+const server = createServer(app);
+
+// Initialize Socket.IO for real-time progress updates
+const io = new Server(server, {
+  cors: {
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      // List of allowed origins
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://localhost:5174', 
+        'http://localhost:5175',
+        'http://localhost:5176',
+        'http://localhost:5177',
+        'https://code.zapq.dev',
+        'https://zapq-ui-main-f6uekkucl-amit-ks-projects-30a8790d.vercel.app'
+      ];
+      
+      // Allow any Vercel deployment (*.vercel.app)
+      const isVercelDomain = origin.endsWith('.vercel.app');
+      
+      if (allowedOrigins.includes(origin) || isVercelDomain) {
+        return callback(null, true);
+      }
+      
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+  }
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('🔌 Client connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id);
+  });
+  
+  socket.on('join-session', (sessionId) => {
+    socket.join(sessionId);
+    console.log(`📡 Client ${socket.id} joined session: ${sessionId}`);
+  });
+});
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -200,7 +250,68 @@ app.get('/stacks', (req, res) => {
   }
 });
 
-// 🆕 NEW ARCHITECTURE: Orchestrated project generation
+// 🆕 NEW: Generation status endpoint
+app.get('/generation-status/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  
+  // Check if there are any active generations for this session
+  const activeGenerations = io.sockets.adapter.rooms.get(sessionId);
+  
+  if (activeGenerations) {
+    res.json({
+      success: true,
+      status: 'active',
+      sessionId,
+      message: 'Generation in progress'
+    });
+  } else {
+    res.json({
+      success: true,
+      status: 'inactive',
+      sessionId,
+      message: 'No active generation found'
+    });
+  }
+});
+
+// 🆕 NEW: Cancel generation endpoint
+app.post('/cancel-generation/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  
+  try {
+    // Emit cancellation event to all clients in the session
+    io.to(sessionId).emit('generation-cancelled', {
+      sessionId,
+      timestamp: new Date().toISOString(),
+      message: 'Generation cancelled by user'
+    });
+    
+    // Remove all clients from the session room
+    const room = io.sockets.adapter.rooms.get(sessionId);
+    if (room) {
+      for (const clientId of room) {
+        const socket = io.sockets.sockets.get(clientId);
+        if (socket) {
+          socket.leave(sessionId);
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Generation cancelled successfully',
+      sessionId
+    });
+  } catch (error) {
+    console.error('❌ Error cancelling generation:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cancel generation'
+    });
+  }
+});
+
+// 🆕 NEW ARCHITECTURE: Orchestrated project generation with WebSocket progress
 app.post('/orchestrate-project', async (req, res) => {
   const { stackId, userPrompt, sessionId, projectName } = req.body;
   
@@ -226,14 +337,37 @@ app.post('/orchestrate-project', async (req, res) => {
     // Create orchestration engine instance
     const engine = new OrchestrationEngine(sessionId, askClaude, stackConfig);
     
-    // Progress tracking (for future WebSocket implementation)
+    // Enhanced progress tracking with WebSocket
     const progressCallback = (step, progress) => {
       console.log(`📊 Progress: ${Math.round(progress)}% - ${step}`);
-      // TODO: Implement WebSocket for real-time progress updates
+      
+      // Emit real-time progress via WebSocket
+      if (sessionId) {
+        io.to(sessionId).emit('generation-progress', {
+          step,
+          progress: Math.round(progress),
+          timestamp: new Date().toISOString()
+        });
+      }
     };
     
-    // Generate project
-    const result = await engine.generateProject(projectName || userPrompt, userPrompt, progressCallback);
+    // Emit start event
+    if (sessionId) {
+      io.to(sessionId).emit('generation-started', {
+        sessionId,
+        projectName: projectName || userPrompt,
+        timestamp: new Date().toISOString(),
+        message: 'Project generation started'
+      });
+    }
+    
+    // Generate project with enhanced timeout handling (10 minutes for enterprise generation)
+    const result = await Promise.race([
+      engine.generateProject(projectName || userPrompt, userPrompt, progressCallback),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Generation timeout after 10 minutes')), 10 * 60 * 1000)
+      )
+    ]);
     
     if (result.success) {
       console.log(`✅ Orchestrated generation successful: ${Object.keys(result.files).length} files`);
@@ -253,30 +387,67 @@ app.post('/orchestrate-project', async (req, res) => {
       console.log(`  - actualTokens: ${actualTokens}`);
       console.log(`  - tokensUsed (final): ${tokensUsed}`);
       
+      // Emit completion event
+      if (sessionId) {
+        io.to(sessionId).emit('generation-complete', {
+          success: true,
+          fileCount: Object.keys(result.files).length,
+          tokensUsed,
+          sessionId,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       res.json({
         success: true,
         files: Object.entries(result.files).map(([path, content]) => ({
           name: path,
           content: content
         })),
-        tokensUsed: tokensUsed
+        tokensUsed: tokensUsed,
+        sessionId: sessionId
       });
     } else {
       console.log(`❌ Orchestrated generation failed:`, result.errors);
       const errorTokens = result.tokensUsed !== undefined ? result.tokensUsed : engine.totalTokensUsed || 0;
+      
+      // Emit error event
+      if (sessionId) {
+        io.to(sessionId).emit('generation-error', {
+          success: false,
+          error: result.errors?.[0] || 'Project generation failed',
+          details: result.errors,
+          sessionId,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       res.status(500).json({
         success: false,
         error: result.errors?.[0] || 'Project generation failed',
         details: result.errors,
-        tokensUsed: errorTokens
+        tokensUsed: errorTokens,
+        sessionId: sessionId
       });
     }
     
   } catch (error) {
     console.error('🚨 Orchestration error:', error);
+    
+    // Emit error event
+    if (sessionId) {
+      io.to(sessionId).emit('generation-error', {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown orchestration error',
+        sessionId,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     res.status(500).json({ 
       success: false, 
-      error: error instanceof Error ? error.message : 'Unknown orchestration error'
+      error: error instanceof Error ? error.message : 'Unknown orchestration error',
+      sessionId: sessionId
     });
   }
 });
@@ -615,15 +786,18 @@ enhancedAPI.setupRoutes(app);
 buildValidationAPI.setupRoutes(app);
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+
+// Use server.listen instead of app.listen for WebSocket support
+server.listen(PORT, () => {
   console.log(`🚀 NEW ARCHITECTURE: Claude backend running on port ${PORT}`);
   console.log(`🔗 Supporting OrchestrationEngine + StackConfigs`);
   console.log(`📡 CORS enabled for localhost, code.zapq.dev, and all Vercel deployments`);
   console.log(`🧩 Available stacks: ${getAllStacks().length}`);
   console.log(`🔧 WebContainer Build Validation System Ready`);
+  console.log(`🔌 WebSocket support enabled for real-time progress updates`);
   console.log(`📊 Build validation endpoints available:`);
   console.log(`  POST /api/validate-build`);
   console.log(`  GET  /api/validate-build/:validationId`);
   console.log(`  DELETE /api/validate-build/:validationId`);
   console.log(`  GET  /api/validate-build/:validationId/preview`);
-}); 
+});

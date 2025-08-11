@@ -11,6 +11,12 @@ A powerful backend system that generates enterprise-level, production-ready Reac
 - **Performance Optimized**: Code splitting, lazy loading, optimized bundles
 - **Responsive Design**: Mobile-first approach with progressive enhancement
 
+### 🔌 Real-Time Progress Updates
+- **WebSocket Support**: Live progress tracking during generation
+- **Status Monitoring**: Real-time updates on generation progress
+- **Cancellation Support**: Ability to cancel long-running generations
+- **Session Management**: Track multiple concurrent generations
+
 ### 🎨 Design System
 - **Color Palette**: Blue to Purple gradients, semantic colors, dark mode support
 - **Typography**: Inter font family with responsive scaling
@@ -51,6 +57,13 @@ Enterprise-level prompts that generate:
 - Accessibility-compliant components
 - Performance-optimized code
 - Professional design and styling
+
+#### 4. WebSocket Integration
+Real-time communication for:
+- Generation progress updates
+- Status monitoring
+- Error notifications
+- Generation cancellation
 
 ### File Structure
 ```
@@ -102,6 +115,12 @@ Content-Type: application/json
 }
 ```
 
+### Real-Time Progress
+```http
+GET /generation-status/:sessionId
+POST /cancel-generation/:sessionId
+```
+
 ### Chat Interface
 ```http
 POST /chat
@@ -123,6 +142,45 @@ Content-Type: application/json
   "filePath": "src/components/Navbar.tsx",
   "currentContent": "existing file content"
 }
+```
+
+## 🔌 WebSocket Events
+
+### Connection
+```javascript
+// Connect to WebSocket
+const socket = io('http://localhost:3001');
+
+// Join a generation session
+socket.emit('join-session', sessionId);
+```
+
+### Event Listeners
+```javascript
+// Generation started
+socket.on('generation-started', (data) => {
+  console.log('Generation started:', data);
+});
+
+// Progress updates
+socket.on('generation-progress', (data) => {
+  console.log(`Progress: ${data.progress}% - ${data.step}`);
+});
+
+// Generation complete
+socket.on('generation-complete', (data) => {
+  console.log('Generation complete:', data);
+});
+
+// Generation error
+socket.on('generation-error', (data) => {
+  console.error('Generation error:', data);
+});
+
+// Generation cancelled
+socket.on('generation-cancelled', (data) => {
+  console.log('Generation cancelled:', data);
+});
 ```
 
 ## 🎯 Blueprint System
@@ -292,16 +350,125 @@ const AboutPage = React.lazy(() => import('./pages/AboutPage'));
 **Problem**: Import errors in generated code
 **Solution**: Automatic dependency scanning and inclusion
 
+#### Request Timeouts
+**Problem**: Frontend gets "Request timeout" or "AbortError"
+**Solution**: Use WebSocket progress updates instead of HTTP polling
+
+### Timeout Issues Resolution
+
+#### Problem Description
+The enhanced enterprise-level generation takes longer than basic generation, causing frontend timeouts.
+
+#### Root Causes
+1. **Enhanced Prompts**: More detailed instructions require more processing time
+2. **File Validation**: Additional validation steps add processing overhead
+3. **Complex Components**: Enterprise-level components are more sophisticated
+4. **Frontend Timeout**: Default timeout too short for enhanced generation
+
+#### Solutions Implemented
+
+##### 1. **WebSocket Progress Updates**
+```javascript
+// Frontend connects to WebSocket for real-time updates
+const socket = io('http://localhost:3001');
+socket.emit('join-session', sessionId);
+
+socket.on('generation-progress', (data) => {
+  updateProgressBar(data.progress, data.step);
+});
+```
+
+##### 2. **Increased Backend Timeout**
+- Backend timeout increased from 5 to 10 minutes
+- Handles enterprise-level generation complexity
+- Prevents premature termination
+
+##### 3. **Real-Time Status Monitoring**
+```http
+GET /generation-status/:sessionId
+POST /cancel-generation/:sessionId
+```
+
+##### 4. **Enhanced Error Handling**
+- WebSocket error events
+- Detailed error messages
+- Graceful failure handling
+
+#### Frontend Implementation
+
+##### Replace HTTP Polling with WebSocket
+```javascript
+// ❌ Old approach - HTTP polling with timeout
+const response = await fetch('/orchestrate-project', {
+  method: 'POST',
+  body: JSON.stringify(requestData),
+  signal: AbortSignal.timeout(30000) // 30 second timeout
+});
+
+// ✅ New approach - WebSocket with progress updates
+const socket = io('http://localhost:3001');
+socket.emit('join-session', sessionId);
+
+// Listen for real-time progress
+socket.on('generation-progress', (data) => {
+  updateProgressUI(data.progress, data.step);
+});
+
+// Handle completion
+socket.on('generation-complete', (data) => {
+  handleSuccess(data.files);
+});
+```
+
+##### Progress UI Updates
+```javascript
+function updateProgressUI(progress, step) {
+  const progressBar = document.getElementById('progress-bar');
+  const statusText = document.getElementById('status-text');
+  
+  progressBar.style.width = `${progress}%`;
+  statusText.textContent = `Generating ${step}... (${progress}%)`;
+}
+```
+
+#### Backend Configuration
+
+##### Environment Variables
+```bash
+# Increase timeout for enterprise generation
+GENERATION_TIMEOUT=600000  # 10 minutes in milliseconds
+```
+
+##### WebSocket Configuration
+```javascript
+// Socket.IO with CORS support
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
+  }
+});
+```
+
 ### Debug Mode
 Enable detailed logging:
 ```bash
 DEBUG=zapq:* npm start
 ```
 
+### Performance Monitoring
+```bash
+# Check generation status
+curl http://localhost:3001/generation-status/session-id
+
+# Monitor WebSocket connections
+# Check server logs for connection events
+```
+
 ## 🚀 Future Enhancements
 
 ### Planned Features
-- **WebSocket Progress Updates**: Real-time generation progress
+- **WebSocket Progress Updates**: Real-time generation progress ✅ **IMPLEMENTED**
 - **Template Library**: Pre-built component templates
 - **Quality Scoring**: AI-powered code quality assessment
 - **Custom Stacks**: User-defined technology stacks
