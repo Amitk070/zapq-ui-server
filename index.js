@@ -423,18 +423,11 @@ app.post('/save', (req, res) => {
 });
 
 // Enhanced askClaude function with rate limiting and retry logic
-async function askClaude(prompt, max_tokens = 4096, retryCount = 0) {
+async function askClaude(prompt, max_tokens = 2048, retryCount = 0) {
   const maxRetries = 3;
-  const baseDelay = 60000; // 1 minute base delay
-  
-  // Check if API key is available
-  if (!API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY is not set. Please configure the API key in environment variables.');
-  }
-  
+  const baseDelay = 2000;
+
   try {
-    console.log(`🤖 Claude request: ${prompt.substring(0, 100)}... (${max_tokens} max tokens)`);
-    
     const result = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -444,66 +437,37 @@ async function askClaude(prompt, max_tokens = 4096, retryCount = 0) {
       },
       body: JSON.stringify({
         model: 'claude-3-5-sonnet-20241022',
-        max_tokens: max_tokens,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]
+        max_tokens,
+        messages: [{ role: 'user', content: prompt }]
       })
     });
 
-    if (result.status === 429) {
-      // Rate limit hit
-      const retryAfter = result.headers.get('retry-after');
-      const delay = retryAfter ? parseInt(retryAfter) * 1000 : baseDelay * Math.pow(2, retryCount);
-      
-      console.log(`⏱️ Rate limit hit. Retrying in ${delay/1000} seconds... (Attempt ${retryCount + 1}/${maxRetries + 1})`);
-      
+    // Retry if 500 error
+    if (result.status >= 500) {
       if (retryCount < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return await askClaude(prompt, max_tokens, retryCount + 1);
+        const delay = baseDelay * (retryCount + 1);
+        console.warn(`🔁 Claude 500 error, retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        return askClaude(prompt, max_tokens, retryCount + 1);
       } else {
-        throw new Error(`Rate limit exceeded. Max retries (${maxRetries}) reached. Please try again later.`);
+        throw new Error(`Claude API failed after retries: ${result.status} ${result.statusText}`);
       }
     }
 
     if (!result.ok) {
-      console.error(`❌ Claude API error: ${result.status} ${result.statusText}`);
       const errorText = await result.text();
       console.error('❌ Error details:', errorText);
       throw new Error(`Claude API failed: ${result.status} ${result.statusText}`);
     }
 
     const raw = await result.json();
-    console.log('🔍 Claude raw response structure:', Object.keys(raw));
-
-    if (raw.error) {
-      console.error('❌ Claude API returned error:', raw.error);
-      throw new Error(`Claude API error: ${raw.error.message || 'Unknown error'}`);
-    }
-
     const output = raw.content?.[0]?.text || '';
     const tokensUsed = raw.usage?.output_tokens || 0;
 
-    console.log(`✅ Claude responded: ${output.length} chars, ${tokensUsed} tokens`);
-
-    if (output.length === 0) {
-      console.warn('⚠️ Claude returned empty response');
-      console.log('🔍 Full raw response:', JSON.stringify(raw, null, 2));
-    }
-
     return { output, tokensUsed };
+
   } catch (error) {
-    if (error.message.includes('Rate limit') && retryCount < maxRetries) {
-      console.log(`🔄 Retrying after error: ${error.message}`);
-      const delay = baseDelay * Math.pow(2, retryCount);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return await askClaude(prompt, max_tokens, retryCount + 1);
-    }
-    
-    console.error('❌ askClaude error:', error);
+    console.error('❌ Claude API crashed:', error);
     throw error;
   }
 }
