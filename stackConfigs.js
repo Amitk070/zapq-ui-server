@@ -1,4 +1,3 @@
-
 export const PROJECT_TYPES = [
   'landing',
   'dashboard',
@@ -37,6 +36,14 @@ export const STACK_CONFIGS = [
       'Sidebar.tsx'
     ],
 
+    requiredFiles: [
+      'vite.config.ts',
+      'tsconfig.json',
+      'index.html',
+      'src/main.tsx',
+      'src/index.css'
+    ],
+
     templates: {
       packageJson: {
         name: '{projectName}',
@@ -68,7 +75,7 @@ export const STACK_CONFIGS = [
     },
 
     prompts: {
-      analyze: `Analyze the user request and define an enterprise-quality React + Tailwind app structure.
+      analyze: \`Analyze the user request and define an enterprise-quality modern and creative React + Tailwind app structure.
 
 User Request: "{userPrompt}"
 
@@ -83,9 +90,9 @@ Return JSON with:
     "animations": true,
     "responsive": true
   }
-}`,
+}\`,
 
-      plan: `Plan the folder structure and base files for a modern React + Vite + Tailwind app.
+      plan: \`Plan the folder structure and base files for a modern React + Vite + Tailwind app.
 
 Project: {projectName}
 Type: {projectType}
@@ -95,9 +102,9 @@ Return:
 1. Base files
 2. Vite + Tailwind config
 3. Component structure
-ONLY return JSON. No markdown.`,
+ONLY return JSON. No markdown.\`,
 
-      component: `Generate a React + TypeScript component named {name} with Tailwind.
+      component: \`Generate a React + TypeScript component named {name} with Tailwind.
 
 - Include proper props interface
 - Use Tailwind classes
@@ -105,7 +112,7 @@ ONLY return JSON. No markdown.`,
 - Add accessibility
 - Use animation if applicable
 - No explanations or markdown
-Return ONLY valid .tsx code.`
+Return ONLY valid .tsx code.\`
     }
   }
 ];
