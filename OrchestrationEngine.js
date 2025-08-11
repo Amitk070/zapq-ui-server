@@ -60,6 +60,27 @@ Purpose: ${purpose}
 - Do NOT include import/export statements
 - Must include proper HTML structure with DOCTYPE
 `;
+  } else if (blueprint?.fileType === 'State Management Store') {
+    prompt += `CRITICAL: This is a Zustand store file, NOT a React component.
+- Return ONLY valid TypeScript store code
+- Do NOT include JSX syntax or React components
+- Must use Zustand create function with proper middleware
+- Include TypeScript interfaces and types
+`;
+  } else if (blueprint?.fileType === 'React Form Component') {
+    prompt += `CRITICAL: This is a React form component.
+- Return ONLY valid TSX code
+- Must include React Hook Form and Zod validation
+- Include proper accessibility features
+- Use consistent design system styling
+`;
+  } else if (blueprint?.fileType === 'React Page Component') {
+    prompt += `CRITICAL: This is a React page component.
+- Return ONLY valid TSX code
+- Must include proper routing and navigation
+- Integrate with global state management
+- Include accessibility and SEO features
+`;
   } else {
     // React component
     prompt += `CRITICAL: This is a React component file.
@@ -139,6 +160,30 @@ Purpose: ${purpose}
     }
   }
 
+  // Add state management requirements
+  if (blueprint?.stateManagement) {
+    prompt += `\nState Management:\n`;
+    Object.entries(blueprint.stateManagement).forEach(([key, value]) => {
+      prompt += `- ${key}: ${value}\n`;
+    });
+  }
+
+  // Add form handling requirements
+  if (blueprint?.formHandling) {
+    prompt += `\nForm Handling:\n`;
+    Object.entries(blueprint.formHandling).forEach(([key, value]) => {
+      prompt += `- ${key}: ${value}\n`;
+    });
+  }
+
+  // Add routing requirements
+  if (blueprint?.routing) {
+    prompt += `\nRouting Requirements:\n`;
+    Object.entries(blueprint.routing).forEach(([key, value]) => {
+      prompt += `- ${key}: ${value}\n`;
+    });
+  }
+
   prompt += `\nTechnical Requirements:
 - Use TypeScript with strict typing
 - Use Tailwind CSS for styling
@@ -148,6 +193,9 @@ Purpose: ${purpose}
 - Implement responsive design with mobile-first approach
 - Include proper error handling and loading states
 - Optimize for performance and SEO
+- Use Zustand for state management where applicable
+- Include React Hook Form with Zod validation where applicable
+- Implement proper routing with React Router where applicable
 
 Return ONLY the requested file content. No explanations, no markdown, no code blocks.`;
 
@@ -165,6 +213,10 @@ function scanImports(tsxContent) {
   if (tsxContent.includes('react-hook-form')) deps['react-hook-form'] = '^7.52.1';
   if (tsxContent.includes('zod')) deps['zod'] = '^3.23.8';
   if (tsxContent.includes('zustand')) deps['zustand'] = '^4.5.4';
+  if (tsxContent.includes('recharts')) deps['recharts'] = '^2.12.0';
+  if (tsxContent.includes('date-fns')) deps['date-fns'] = '^3.6.0';
+  if (tsxContent.includes('clsx')) deps['clsx'] = '^2.1.1';
+  if (tsxContent.includes('tailwind-merge')) deps['tailwind-merge'] = '^2.4.0';
   return deps;
 }
 
@@ -196,6 +248,7 @@ export class OrchestrationEngine {
 
     const requiredComponents = this.stackConfig.requiredComponents || [];
     const requiredFiles = this.stackConfig.requiredFiles || [];
+    const enhancedBlueprints = this.stackConfig.enhancedBlueprints || [];
     const packageJson = JSON.parse(JSON.stringify(this.stackConfig.templates.packageJson));
     const generatedDependencies = {};
 
@@ -230,7 +283,29 @@ export class OrchestrationEngine {
       progressCallback(componentName, ((requiredComponents.indexOf(file) + 1) / requiredComponents.length) * 100);
     }
 
-    // 3️⃣ Merge all scanned dependencies into package.json
+    // 3️⃣ Generate enhanced blueprints for additional functionality
+    if (enhancedBlueprints.length > 0) {
+      progressCallback('Enhanced Blueprints', 90);
+      
+      for (const blueprintFile of enhancedBlueprints) {
+        const blueprintName = blueprintFile.replace('.ts', '');
+        const blueprint = await loadBlueprint(blueprintName);
+        
+        if (blueprint) {
+          const prompt = buildEnterpriseComponentPrompt(blueprintName, blueprint, this.session.projectPlan);
+          const response = await this.askClaudeWithSession(prompt);
+          const code = response.output?.trim() || '';
+
+          // Store enhanced blueprint code for reference
+          this.session.generatedFiles[`blueprints/${blueprintFile}`] = code;
+
+          const foundDeps = scanImports(code);
+          Object.assign(generatedDependencies, foundDeps);
+        }
+      }
+    }
+
+    // 4️⃣ Merge all scanned dependencies into package.json
     packageJson.dependencies = {
       ...packageJson.dependencies,
       ...generatedDependencies

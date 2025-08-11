@@ -12,7 +12,9 @@ export const appTsxBlueprint = {
     responsive: "Mobile-first responsive design",
     accessibilityCompliant: "WCAG 2.1 AA compliance",
     themeProvider: "Context-based theme management",
-    routing: "React Router with lazy-loaded pages"
+    routing: "React Router with lazy-loaded pages",
+    stateManagement: "Zustand store integration for global state",
+    formHandling: "React Hook Form with Zod validation setup"
   },
 
   structure: {
@@ -23,6 +25,8 @@ export const appTsxBlueprint = {
       'framer-motion AnimatePresence for animations',
       'useState, useEffect, useContext for state management',
       'ThemeProvider and useTheme hook',
+      'Zustand store for global state management',
+      'React Hook Form and Zod for form handling',
       'Tailwind CSS classes for styling'
     ],
 
@@ -37,6 +41,10 @@ export const appTsxBlueprint = {
       '            <main className="flex-1">',
       '              <Routes>',
       '                {/* Lazy-loaded page routes */}',
+      '                <Route path="/" element={<HomePage />} />',
+      '                <Route path="/dashboard" element={<DashboardPage />} />',
+      '                <Route path="/settings" element={<SettingsPage />} />',
+      '                <Route path="*" element={<NotFoundPage />} />',
       '              </Routes>',
       '            </main>',
       '            <Footer />',
@@ -60,7 +68,23 @@ export const appTsxBlueprint = {
     lazyLoading: "React.lazy() for all page components",
     suspense: "LoadingSpinner fallback for all routes",
     transitions: "Framer Motion page transitions",
-    errorHandling: "Error boundaries for each route"
+    errorHandling: "Error boundaries for each route",
+    routeGuards: "Protected routes with authentication checks",
+    nestedRoutes: "Support for nested routing patterns"
+  },
+
+  stateManagement: {
+    globalState: "Zustand store for application-wide state",
+    localState: "useState for component-specific state",
+    persistence: "Local storage integration for data persistence",
+    devtools: "Redux DevTools integration for debugging"
+  },
+
+  formHandling: {
+    validation: "Zod schemas for form validation",
+    formLibrary: "React Hook Form for form state management",
+    errorDisplay: "Field-level error messages and validation",
+    accessibility: "Proper form labels and ARIA attributes"
   },
 
   accessibility: {
@@ -70,7 +94,9 @@ export const appTsxBlueprint = {
       'Add aria-labels and keyboard navigation',
       'Proper heading hierarchy (h1, h2, h3)',
       'Skip to main content link',
-      'Focus management for navigation'
+      'Focus management for navigation',
+      'Screen reader compatibility',
+      'Keyboard navigation support'
     ]
   },
 
@@ -83,7 +109,9 @@ export const appTsxBlueprint = {
     errorHandling: 'Wrap with <ErrorBoundary> from react-error-boundary',
     lazyLoading: 'Pages/components imported via React.lazy() + Suspense',
     animation: 'Wrap transitions with AnimatePresence from framer-motion',
-    responsive: 'Mobile-first design with progressive enhancement'
+    responsive: 'Mobile-first design with progressive enhancement',
+    statePersistence: 'Zustand store with localStorage persistence',
+    formValidation: 'Real-time validation with Zod schemas'
   },
 
   performance: {
@@ -91,7 +119,9 @@ export const appTsxBlueprint = {
       'React.lazy() for code splitting',
       'Suspense boundaries for loading states',
       'Memoized components where appropriate',
-      'Optimized re-renders with proper dependency arrays'
+      'Optimized re-renders with proper dependency arrays',
+      'Virtual scrolling for large lists',
+      'Image optimization with lazy loading'
     ]
   },
 
@@ -105,7 +135,12 @@ export const appTsxBlueprint = {
     "Modern React patterns (hooks, functional components)",
     "Framer Motion for smooth animations",
     "Tailwind CSS for consistent styling",
-    "SEO-friendly semantic markup"
+    "SEO-friendly semantic markup",
+    "Zustand for efficient state management",
+    "React Hook Form with Zod validation",
+    "Protected routing with authentication",
+    "Data persistence with localStorage",
+    "Performance monitoring and optimization"
   ],
 
   rules: [
@@ -116,6 +151,10 @@ export const appTsxBlueprint = {
     'Must be production-grade and compile successfully',
     'Include proper TypeScript interfaces and types',
     'Implement error boundaries and loading states',
-    'Use semantic HTML and accessibility features'
+    'Use semantic HTML and accessibility features',
+    'Include Zustand store setup and integration',
+    'Implement React Hook Form with Zod validation',
+    'Add proper routing with React Router',
+    'Include loading states and error handling'
   ]
 };

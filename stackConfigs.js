@@ -5,20 +5,23 @@ export const PROJECT_TYPES = [
   'ecommerce',
   'portfolio',
   'marketing',
-  'saas'
+  'saas',
+  'budget-tracker',
+  'task-manager',
+  'analytics-dashboard'
 ];
 
 export const STACK_CONFIGS = [
   {
     id: 'react-vite-tailwind',
     name: 'React + Vite + Tailwind',
-    description: 'Enterprise-grade React + Vite + Tailwind stack with modern animations and design patterns',
+    description: 'Enterprise-grade React + Vite + Tailwind stack with modern animations, state management, and design patterns',
     framework: 'react',
     buildTool: 'vite',
     styling: 'tailwind',
     language: 'typescript',
     icon: '⚛️',
-    projectTypes: ['landing', 'portfolio', 'marketing', 'saas'],
+    projectTypes: ['landing', 'portfolio', 'marketing', 'saas', 'budget-tracker', 'task-manager', 'analytics-dashboard'],
 
     requiredComponents: [
       'Navbar.tsx',
@@ -41,7 +44,19 @@ export const STACK_CONFIGS = [
       'tsconfig.json',
       'index.html',
       'src/main.tsx',
-      'src/index.css'
+      'src/index.css',
+      'src/App.tsx'
+    ],
+
+    // New enhanced blueprints
+    enhancedBlueprints: [
+      'store.ts',        // Zustand state management
+      'Form.ts',         // Form components with validation
+      'Page.ts',         // Page components with routing
+      'Chart.ts',        // Data visualization components
+      'Table.ts',        // Data table components
+      'Modal.ts',        // Modal and overlay components
+      'Toast.ts'         // Notification components
     ],
 
     templates: {
@@ -55,7 +70,9 @@ export const STACK_CONFIGS = [
           build: 'vite build',
           preview: 'vite preview',
           lint: 'eslint .',
-          typecheck: 'tsc --noEmit'
+          typecheck: 'tsc --noEmit',
+          test: 'vitest',
+          test:ui: 'vitest --ui'
         },
         dependencies: {
           react: '^18.3.1',
@@ -70,7 +87,9 @@ export const STACK_CONFIGS = [
           'zustand': '^4.5.4',
           '@tanstack/react-query': '^5.51.23',
           'clsx': '^2.1.1',
-          'tailwind-merge': '^2.4.0'
+          'tailwind-merge': '^2.4.0',
+          'recharts': '^2.12.0',
+          'date-fns': '^3.6.0'
         },
         devDependencies: {
           typescript: '^5.5.3',
@@ -84,7 +103,11 @@ export const STACK_CONFIGS = [
           eslint: '^9.9.1',
           'eslint-plugin-react-hooks': '^5.1.0-rc.0',
           'eslint-plugin-react-refresh': '^0.4.11',
-          'typescript-eslint': '^8.3.0'
+          'typescript-eslint': '^8.3.0',
+          'vitest': '^2.1.8',
+          '@testing-library/react': '^16.1.0',
+          '@testing-library/jest-dom': '^6.6.3',
+          '@vitejs/plugin-react-swc': '^4.0.0'
         }
       }
     },
@@ -106,7 +129,11 @@ Return JSON with:
     "responsive": true,
     "glassmorphism": true,
     "gradients": true,
-    "microInteractions": true
+    "microInteractions": true,
+    "stateManagement": true,
+    "formValidation": true,
+    "dataVisualization": true,
+    "accessibility": true
   }
 }`,
 
@@ -120,6 +147,8 @@ Return:
 1. Base files
 2. Vite + Tailwind config
 3. Component structure
+4. State management setup
+5. Routing configuration
 ONLY return JSON. No markdown.`,
 
       component: `Generate a React + TypeScript component named {name} with Tailwind.
@@ -177,6 +206,27 @@ Return ONLY valid .tsx code.`
         patterns: 'Glassmorphism, gradient backgrounds, smooth transitions',
         components: 'Interactive cards, animated buttons, loading skeletons',
         responsive: 'Mobile-first design with progressive enhancement'
+      },
+
+      stateManagement: {
+        global: 'Zustand for application-wide state',
+        local: 'React hooks for component state',
+        persistence: 'Local storage integration',
+        devtools: 'Redux DevTools integration'
+      },
+
+      formHandling: {
+        validation: 'Zod schemas for runtime validation',
+        library: 'React Hook Form for form state',
+        accessibility: 'Proper labels and ARIA attributes',
+        errorHandling: 'Field-level error display'
+      },
+
+      routing: {
+        library: 'React Router for navigation',
+        lazyLoading: 'Code splitting with React.lazy',
+        guards: 'Protected routes and authentication',
+        nested: 'Nested routing support'
       }
     }
   }
