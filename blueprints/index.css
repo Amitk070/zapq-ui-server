@@ -1,24 +1,54 @@
-// blueprints/indexCss.ts
+// blueprints/index.css
 export const indexCssBlueprint = {
-  tailwindDirectives: ["@tailwind base;", "@tailwind components;", "@tailwind utilities;"],
-  baseLayer: {
-    html: "scroll-behavior: smooth;",
-    body: {
-      fontFamily: "Inter, system-ui, sans-serif",
-      colorScheme: "light dark",
-      textColor: "foreground",
-      backgroundColor: "background"
-    }
+  fileType: "CSS Stylesheet",
+  purpose: "Main CSS file with Tailwind directives and custom styles",
+  
+  // CRITICAL: This is NOT a React component - it's a CSS file
+  criticalNote: "DO NOT generate React/TSX code. This must be a valid CSS file with Tailwind directives.",
+  
+  template: {
+    tailwindDirectives: [
+      "@tailwind base;",
+      "@tailwind components;", 
+      "@tailwind utilities;"
+    ],
+    
+    baseLayer: {
+      html: "scroll-behavior: smooth;",
+      body: {
+        fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        colorScheme: "light dark",
+        textColor: "rgb(var(--foreground))",
+        backgroundColor: "rgb(var(--background))"
+      }
+    },
+    
+    customClasses: [
+      ".btn-primary { @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200; }",
+      ".card { @apply bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700; }",
+      ".gradient-bg { @apply bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500; }",
+      ".glass-effect { @apply backdrop-blur-lg bg-white/10 border border-white/20; }",
+      ".text-gradient { @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent; }"
+    ],
+    
+    darkModeSupport: [
+      ":root { --foreground: 0 0% 3.9%; --background: 0 0% 98%; }",
+      ".dark { --foreground: 0 0% 98%; --background: 0 0% 3.9%; }"
+    ]
   },
-  customClasses: [
-    ".btn-primary",
-    ".card",
-    ".gradient-bg",
-    ".glass-effect"
-  ],
+
+  validation: {
+    mustContain: ["@tailwind base", "@tailwind components", "@tailwind utilities"],
+    mustNotContain: ["import", "export", "function", "const", "JSX", "React", "<", ">"],
+    fileExtension: ".css",
+    isCss: true
+  },
+
   notes: [
-    "Use Tailwind layers to control base, components, utilities",
-    "Add dark mode via `dark:` class support",
-    "Include custom UI utility classes for consistent design system"
+    "This is a CSS file, NOT a TypeScript/React component",
+    "Must contain Tailwind CSS directives at the top",
+    "Include custom utility classes for consistent design system",
+    "Support dark mode with CSS custom properties",
+    "Use modern CSS features like backdrop-blur and gradients"
   ]
 };

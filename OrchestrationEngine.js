@@ -18,23 +18,140 @@ async function loadBlueprint(componentName) {
   return module[key];
 }
 
-// Inject blueprint + plan context into Claude prompt
-function buildComponentPrompt(name, blueprint, plan) {
-  return `Generate a React component named ${name} for a ${plan.projectType} project.
+// Enhanced prompt builder for enterprise-level generation
+function buildEnterpriseComponentPrompt(name, blueprint, plan) {
+  const fileType = blueprint?.fileType || 'React Component';
+  const purpose = blueprint?.purpose || 'Component for the application';
+  
+  let prompt = `Generate a ${fileType} named ${name} for a ${plan.projectType} project.
 
 Description: ${plan.description}
 
-Features:
-${Object.entries(blueprint || {}).map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`).join('\n')}
+Purpose: ${purpose}
 
-CRITICAL:
-- Return ONLY valid TSX
-- Do NOT explain
-- No markdown
-- Component must compile.
-- Use Tailwind CSS
-- Use proper React 18 patterns and modern hooks
-- Must be fully responsive and accessible (WCAG AA)`;
+`;
+
+  // Add file type specific instructions
+  if (blueprint?.fileType === 'TypeScript Configuration') {
+    prompt += `CRITICAL: This is a TypeScript configuration file (tsconfig.json), NOT a React component.
+- Return ONLY valid JSON configuration
+- Do NOT include any React/TSX code
+- Do NOT include import/export statements
+- Must be parseable JSON for TypeScript compiler
+`;
+  } else if (blueprint?.fileType === 'CSS Stylesheet') {
+    prompt += `CRITICAL: This is a CSS file, NOT a React component.
+- Return ONLY valid CSS with Tailwind directives
+- Do NOT include any React/TSX code
+- Do NOT include import/export statements
+- Must start with @tailwind directives
+`;
+  } else if (blueprint?.fileType === 'Vite Configuration') {
+    prompt += `CRITICAL: This is a Vite configuration file, NOT a React component.
+- Return ONLY valid TypeScript configuration code
+- Do NOT include any React/TSX code
+- Do NOT include JSX syntax
+- Must use defineConfig and proper Vite syntax
+`;
+  } else if (blueprint?.fileType === 'HTML Entry Point') {
+    prompt += `CRITICAL: This is an HTML file, NOT a React component.
+- Return ONLY valid HTML markup
+- Do NOT include any React/TSX code
+- Do NOT include import/export statements
+- Must include proper HTML structure with DOCTYPE
+`;
+  } else {
+    // React component
+    prompt += `CRITICAL: This is a React component file.
+- Return ONLY valid TSX code
+- Do NOT include markdown or explanations
+- Component must compile successfully
+- Use modern React 18 patterns with functional components and hooks
+`;
+  }
+
+  // Add blueprint features if available
+  if (blueprint?.features) {
+    prompt += `\nFeatures to implement:\n`;
+    Object.entries(blueprint.features).forEach(([key, value]) => {
+      prompt += `- ${key}: ${value}\n`;
+    });
+  }
+
+  // Add design system if available
+  if (blueprint?.designSystem) {
+    prompt += `\nDesign System:\n`;
+    Object.entries(blueprint.designSystem).forEach(([key, value]) => {
+      if (typeof value === 'object') {
+        prompt += `- ${key}:\n`;
+        Object.entries(value).forEach(([subKey, subValue]) => {
+          prompt += `  - ${subKey}: ${subValue}\n`;
+        });
+      } else {
+        prompt += `- ${key}: ${value}\n`;
+      }
+    });
+  }
+
+  // Add enterprise features if available
+  if (blueprint?.enterpriseFeatures) {
+    prompt += `\nEnterprise Features:\n`;
+    blueprint.enterpriseFeatures.forEach(feature => {
+      prompt += `- ${feature}\n`;
+    });
+  }
+
+  // Add accessibility requirements
+  if (blueprint?.accessibility) {
+    prompt += `\nAccessibility Requirements:\n`;
+    Object.entries(blueprint.accessibility).forEach(([key, value]) => {
+      prompt += `- ${key}: ${value}\n`;
+    });
+  }
+
+  // Add animation requirements
+  if (blueprint?.animations) {
+    prompt += `\nAnimation Requirements:\n`;
+    Object.entries(blueprint.animations).forEach(([key, value]) => {
+      prompt += `- ${key}: ${value}\n`;
+    });
+  }
+
+  // Add responsive design requirements
+  if (blueprint?.responsive) {
+    prompt += `\nResponsive Design:\n`;
+    Object.entries(blueprint.responsive).forEach(([key, value]) => {
+      prompt += `- ${key}: ${value}\n`;
+    });
+  }
+
+  // Add validation rules
+  if (blueprint?.validation) {
+    prompt += `\nValidation Rules:\n`;
+    if (blueprint.validation.mustContain) {
+      prompt += `- Must contain: ${blueprint.validation.mustContain.join(', ')}\n`;
+    }
+    if (blueprint.validation.mustNotContain) {
+      prompt += `- Must NOT contain: ${blueprint.validation.mustNotContain.join(', ')}\n`;
+    }
+    if (blueprint.validation.fileExtension) {
+      prompt += `- File extension: ${blueprint.validation.fileExtension}\n`;
+    }
+  }
+
+  prompt += `\nTechnical Requirements:
+- Use TypeScript with strict typing
+- Use Tailwind CSS for styling
+- Include Framer Motion for animations
+- Ensure accessibility compliance (WCAG AA)
+- Use modern React patterns (hooks, functional components)
+- Implement responsive design with mobile-first approach
+- Include proper error handling and loading states
+- Optimize for performance and SEO
+
+Return ONLY the requested file content. No explanations, no markdown, no code blocks.`;
+
+  return prompt;
 }
 
 // Utility to scan TSX for external packages
@@ -44,6 +161,10 @@ function scanImports(tsxContent) {
   if (tsxContent.includes('react-error-boundary')) deps['react-error-boundary'] = '^4.0.11';
   if (tsxContent.includes('@heroicons/react')) deps['@heroicons/react'] = '^2.1.1';
   if (tsxContent.includes('framer-motion')) deps['framer-motion'] = '^11.3.19';
+  if (tsxContent.includes('lucide-react')) deps['lucide-react'] = '^0.428.0';
+  if (tsxContent.includes('react-hook-form')) deps['react-hook-form'] = '^7.52.1';
+  if (tsxContent.includes('zod')) deps['zod'] = '^3.23.8';
+  if (tsxContent.includes('zustand')) deps['zustand'] = '^4.5.4';
   return deps;
 }
 
@@ -67,59 +188,60 @@ export class OrchestrationEngine {
   }
 
   async generateProject(projectName, userPrompt, progressCallback = () => {}) {
-  this.session.projectPlan = {
-    projectName,
-    description: userPrompt,
-    projectType: this.stackConfig.projectTypes[0]
-  };
+    this.session.projectPlan = {
+      projectName,
+      description: userPrompt,
+      projectType: this.stackConfig.projectTypes[0]
+    };
 
-  const requiredComponents = this.stackConfig.requiredComponents || [];
-  const requiredFiles = this.stackConfig.requiredFiles || [];
-  const packageJson = JSON.parse(JSON.stringify(this.stackConfig.templates.packageJson));
-  const generatedDependencies = {};
+    const requiredComponents = this.stackConfig.requiredComponents || [];
+    const requiredFiles = this.stackConfig.requiredFiles || [];
+    const packageJson = JSON.parse(JSON.stringify(this.stackConfig.templates.packageJson));
+    const generatedDependencies = {};
 
-  // 1️⃣ Generate core project files
-  for (const filePath of requiredFiles) {
-    const baseName = path.basename(filePath).replace(/\.(tsx|ts|json|html|css)$/, '');
-    const blueprint = await loadBlueprint(baseName);
-    const prompt = buildComponentPrompt(baseName, blueprint, this.session.projectPlan);
-    const result = await this.askClaudeWithSession(prompt);
-    const code = result.output?.trim() || '';
+    // 1️⃣ Generate core project files with enhanced prompts
+    for (const filePath of requiredFiles) {
+      const baseName = path.basename(filePath).replace(/\.(tsx|ts|json|html|css)$/, '');
+      const blueprint = await loadBlueprint(baseName);
+      const prompt = buildEnterpriseComponentPrompt(baseName, blueprint, this.session.projectPlan);
+      const result = await this.askClaudeWithSession(prompt);
+      const code = result.output?.trim() || '';
 
-    this.session.generatedFiles[filePath] = code;
+      this.session.generatedFiles[filePath] = code;
 
-    // Scan for any new dependencies
-    const foundDeps = scanImports(code);
-    Object.assign(generatedDependencies, foundDeps);
+      // Scan for any new dependencies
+      const foundDeps = scanImports(code);
+      Object.assign(generatedDependencies, foundDeps);
+    }
+
+    // 2️⃣ Generate required components with enhanced prompts
+    for (const file of requiredComponents) {
+      const componentName = file.replace('.tsx', '');
+      const blueprint = await loadBlueprint(componentName);
+      const prompt = buildEnterpriseComponentPrompt(componentName, blueprint, this.session.projectPlan);
+      const response = await this.askClaudeWithSession(prompt);
+      const tsxCode = response.output?.trim() || '';
+
+      this.session.generatedFiles[`src/components/${file}`] = tsxCode;
+
+      const foundDeps = scanImports(tsxCode);
+      Object.assign(generatedDependencies, foundDeps);
+
+      progressCallback(componentName, ((requiredComponents.indexOf(file) + 1) / requiredComponents.length) * 100);
+    }
+
+    // 3️⃣ Merge all scanned dependencies into package.json
+    packageJson.dependencies = {
+      ...packageJson.dependencies,
+      ...generatedDependencies
+    };
+
+    this.session.generatedFiles['package.json'] = JSON.stringify(packageJson, null, 2);
+
+    return {
+      success: true,
+      files: this.session.generatedFiles,
+      tokensUsed: this.session.totalTokensUsed
+    };
   }
-
-  // 2️⃣ Generate required components
-  for (const file of requiredComponents) {
-    const componentName = file.replace('.tsx', '');
-    const blueprint = await loadBlueprint(componentName);
-    const prompt = buildComponentPrompt(componentName, blueprint, this.session.projectPlan);
-    const response = await this.askClaudeWithSession(prompt);
-    const tsxCode = response.output?.trim() || '';
-
-    this.session.generatedFiles[`src/components/${file}`] = tsxCode;
-
-    const foundDeps = scanImports(tsxCode);
-    Object.assign(generatedDependencies, foundDeps);
-
-    progressCallback(componentName, ((requiredComponents.indexOf(file) + 1) / requiredComponents.length) * 100);
-  }
-
-  // 3️⃣ Merge all scanned dependencies into package.json
-  packageJson.dependencies = {
-    ...packageJson.dependencies,
-    ...generatedDependencies
-  };
-
-  this.session.generatedFiles['package.json'] = JSON.stringify(packageJson, null, 2);
-
-  return {
-    success: true,
-    files: this.session.generatedFiles,
-    tokensUsed: this.session.totalTokensUsed
-  };
-}}
+}

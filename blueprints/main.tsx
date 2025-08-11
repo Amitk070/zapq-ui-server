@@ -1,45 +1,55 @@
 export const mainTsxBlueprint = {
-  purpose: 'Entrypoint for rendering the root React application. Responsible for mounting App into the DOM with necessary global providers.',
-
-  features: {
-    strictMode: true,
-    rootMount: 'ReactDOM.createRoot',
-    tailwindCss: true,
-    globalStylesheet: 'index.css',
-    darkModeSupport: true
-  },
-
+  fileType: "React Entry Point",
+  purpose: 'Main entry point that renders the React application with proper providers and error handling',
+  
+  // CRITICAL: This is a React entry point file, NOT a component
+  criticalNote: "This is the main entry point that renders the App component. Do NOT generate a separate component.",
+  
   structure: {
     imports: [
-      'React',
-      'ReactDOM from react-dom/client',
-      'App component',
-      'index.css',
-      'Any providers (ThemeProvider, QueryClientProvider, etc. if toggled)'
+      'React and ReactDOM from their respective packages',
+      'StrictMode for development checks',
+      'App component from ./App',
+      'ErrorBoundary for global error handling',
+      'ThemeProvider for theme management'
     ],
+    
+    setup: {
+      rootElement: "document.getElementById('root')",
+      render: "ReactDOM.createRoot().render()",
+      providers: "Wrap App with necessary providers",
+      errorBoundary: "Global error boundary for uncaught errors"
+    }
+  },
 
-    renderFlow: [
-      'ReactDOM.createRoot(document.getElementById("root"))',
-      '.render(',
-      '  <React.StrictMode>',
-      '    <App />',
-      '  </React.StrictMode>',
-      ')'
-    ]
+  features: {
+    strictMode: "Enable React.StrictMode for development",
+    errorBoundary: "Global error boundary for uncaught errors",
+    themeProvider: "Theme context provider for dark/light mode",
+    performance: "React 18 concurrent features enabled",
+    development: "Development-only warnings and checks"
+  },
+
+  technicalRequirements: {
+    reactVersion: "React 18 with createRoot API",
+    typescript: "Proper TypeScript typing",
+    errorHandling: "Graceful error handling with fallbacks",
+    performance: "Optimized rendering with concurrent features"
+  },
+
+  validation: {
+    mustContain: ["ReactDOM.createRoot", "App", "StrictMode", "render"],
+    mustNotContain: ["ReactDOM.render (legacy)", "class components", "JSX in wrong place"],
+    fileExtension: ".tsx",
+    isReactEntry: true
   },
 
   notes: [
-    'Assumes App.tsx handles routing, suspense, and layout',
-    'Must import ./index.css containing Tailwind layers',
-    'If theme provider or Zustand store is needed, wrap <App /> accordingly',
-    'Do NOT hardcode project-specific state providers unless required'
-  ],
-
-  rules: [
-    'Use React 18+ root API',
-    'Do NOT explain anything in output',
-    'Return only valid .tsx code',
-    'No markdown formatting',
-    'Ensure App component is the single entry point'
+    "This is the main entry point file that bootstraps the React application",
+    "Must use React 18 createRoot API, not legacy render method",
+    "Include StrictMode for development checks and warnings",
+    "Wrap App with necessary providers (Theme, ErrorBoundary, etc.)",
+    "Handle errors gracefully with error boundaries",
+    "Ensure proper TypeScript typing throughout"
   ]
 };

@@ -1,69 +1,121 @@
 export const appTsxBlueprint = {
-  purpose: 'Entry point React component that sets up global layout, routing, and error handling for the application.',
+  fileType: "React Component",
+  purpose: 'Main application component that sets up global layout, routing, error handling, and theme management',
   
   features: {
-    darkModeToggle: true,
-    animationSupport: true,
-    layoutContainer: true,
-    suspenseFallback: 'LoadingSpinner',
-    errorBoundary: 'ErrorFallback',
-    pageTransitions: true,
-    responsive: true,
-    accessibilityCompliant: true
+    darkModeToggle: "System preference detection with manual override",
+    animationSupport: "Framer Motion for page transitions and micro-interactions",
+    layoutContainer: "Responsive layout with proper semantic structure",
+    suspenseFallback: "LoadingSpinner component for async operations",
+    errorBoundary: "ErrorFallback component for graceful error handling",
+    pageTransitions: "Smooth page transitions with AnimatePresence",
+    responsive: "Mobile-first responsive design",
+    accessibilityCompliant: "WCAG 2.1 AA compliance",
+    themeProvider: "Context-based theme management",
+    routing: "React Router with lazy-loaded pages"
   },
 
   structure: {
     imports: [
-      'React',
-      'ReactDOM',
+      'React, ReactDOM, and React.Suspense',
       'BrowserRouter, Routes, Route from react-router-dom',
-      'Navbar, Footer, LoadingSpinner, ErrorFallback',
-      'React.Suspense and lazy-loaded pages',
-      'framer-motion AnimatePresence (optional)',
-      'useState and useEffect (for dark mode toggle)',
-      'Tailwind styling'
+      'Navbar, Footer, LoadingSpinner, ErrorFallback components',
+      'framer-motion AnimatePresence for animations',
+      'useState, useEffect, useContext for state management',
+      'ThemeProvider and useTheme hook',
+      'Tailwind CSS classes for styling'
     ],
 
     hierarchy: [
       '<BrowserRouter>',
-      '  <ErrorBoundary>',
-      '    <AnimatePresence>',
-      '      <Suspense fallback={<LoadingSpinner />}>',
-      '        <Navbar />',
-      '        <Routes>',
-      '          {/* Dynamically loaded routes */}',
-      '        </Routes>',
-      '        <Footer />',
-      '      </Suspense>',
-      '    </AnimatePresence>',
-      '  </ErrorBoundary>',
+      '  <ThemeProvider>',
+      '    <ErrorBoundary>',
+      '      <AnimatePresence mode="wait">',
+      '        <Suspense fallback={<LoadingSpinner />}>',
+      '          <div className="min-h-screen bg-background">',
+      '            <Navbar />',
+      '            <main className="flex-1">',
+      '              <Routes>',
+      '                {/* Lazy-loaded page routes */}',
+      '              </Routes>',
+      '            </main>',
+      '            <Footer />',
+      '          </div>',
+      '        </Suspense>',
+      '      </AnimatePresence>',
+      '    </ErrorBoundary>',
+      '  </ThemeProvider>',
       '</BrowserRouter>'
     ]
   },
 
+  themeManagement: {
+    context: "ThemeContext with light/dark/system modes",
+    localStorage: "Persist theme preference in localStorage",
+    systemPreference: "Detect and follow system color scheme",
+    toggle: "Manual theme toggle with smooth transitions"
+  },
+
+  routing: {
+    lazyLoading: "React.lazy() for all page components",
+    suspense: "LoadingSpinner fallback for all routes",
+    transitions: "Framer Motion page transitions",
+    errorHandling: "Error boundaries for each route"
+  },
+
   accessibility: {
     requirements: [
-      'Wrap entire layout with main tag if applicable',
+      'Wrap entire layout with main tag',
       'Ensure semantic HTML (nav, main, footer)',
-      'Add aria-labels and keyboard navigation where needed'
+      'Add aria-labels and keyboard navigation',
+      'Proper heading hierarchy (h1, h2, h3)',
+      'Skip to main content link',
+      'Focus management for navigation'
     ]
   },
 
   behavior: {
     darkMode: {
-      implementation: 'useState + useEffect to toggle dark class on <html>',
-      default: 'system-preferred or light'
+      implementation: 'useContext + useEffect to toggle dark class on <html>',
+      default: 'system-preferred with localStorage fallback',
+      transition: 'Smooth color transitions with CSS custom properties'
     },
     errorHandling: 'Wrap with <ErrorBoundary> from react-error-boundary',
     lazyLoading: 'Pages/components imported via React.lazy() + Suspense',
-    animation: 'Wrap transitions with AnimatePresence from framer-motion'
+    animation: 'Wrap transitions with AnimatePresence from framer-motion',
+    responsive: 'Mobile-first design with progressive enhancement'
   },
 
+  performance: {
+    optimizations: [
+      'React.lazy() for code splitting',
+      'Suspense boundaries for loading states',
+      'Memoized components where appropriate',
+      'Optimized re-renders with proper dependency arrays'
+    ]
+  },
+
+  enterpriseFeatures: [
+    "TypeScript with strict mode and proper typing",
+    "Context-based theme management with localStorage persistence",
+    "Error boundaries for graceful error handling",
+    "Lazy loading for optimal performance",
+    "Responsive design with mobile-first approach",
+    "Accessibility compliance (WCAG 2.1 AA)",
+    "Modern React patterns (hooks, functional components)",
+    "Framer Motion for smooth animations",
+    "Tailwind CSS for consistent styling",
+    "SEO-friendly semantic markup"
+  ],
+
   rules: [
-    'Do NOT hardcode any specific routes',
+    'Do NOT hardcode any specific routes - use dynamic routing',
     'Do NOT include markdown or explanations',
     'Return ONLY valid .tsx code',
     'Use modern React 18 patterns with functional components and hooks',
-    'Must be production-grade and compile successfully'
+    'Must be production-grade and compile successfully',
+    'Include proper TypeScript interfaces and types',
+    'Implement error boundaries and loading states',
+    'Use semantic HTML and accessibility features'
   ]
 };
