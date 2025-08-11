@@ -67,43 +67,59 @@ export class OrchestrationEngine {
   }
 
   async generateProject(projectName, userPrompt, progressCallback = () => {}) {
-    this.session.projectPlan = {
-      projectName,
-      description: userPrompt,
-      projectType: this.stackConfig.projectTypes[0]
-    };
+  this.session.projectPlan = {
+    projectName,
+    description: userPrompt,
+    projectType: this.stackConfig.projectTypes[0]
+  };
 
-    const requiredComponents = this.stackConfig.requiredComponents || [];
-    const packageJson = JSON.parse(JSON.stringify(this.stackConfig.templates.packageJson));
-    const generatedDependencies = {};
+  const requiredComponents = this.stackConfig.requiredComponents || [];
+  const requiredFiles = this.stackConfig.requiredFiles || [];
+  const packageJson = JSON.parse(JSON.stringify(this.stackConfig.templates.packageJson));
+  const generatedDependencies = {};
 
-    for (const file of requiredComponents) {
-      const componentName = file.replace('.tsx', '');
-      const blueprint = await loadBlueprint(componentName);
-      const prompt = buildComponentPrompt(componentName, blueprint, this.session.projectPlan);
-      const response = await this.askClaudeWithSession(prompt);
-      const tsxCode = response.output?.trim() || '';
+  // 1️⃣ Generate core project files
+  for (const filePath of requiredFiles) {
+    const baseName = path.basename(filePath).replace(/\.(tsx|ts|json|html|css)$/, '');
+    const blueprint = await loadBlueprint(baseName);
+    const prompt = buildComponentPrompt(baseName, blueprint, this.session.projectPlan);
+    const result = await this.askClaudeWithSession(prompt);
+    const code = result.output?.trim() || '';
 
-      this.session.generatedFiles[`src/components/${file}`] = tsxCode;
+    this.session.generatedFiles[filePath] = code;
 
-      const foundDeps = scanImports(tsxCode);
-      Object.assign(generatedDependencies, foundDeps);
-
-      progressCallback(componentName, ((requiredComponents.indexOf(file) + 1) / requiredComponents.length) * 100);
-    }
-
-    // Inject detected deps into package.json
-    packageJson.dependencies = {
-      ...packageJson.dependencies,
-      ...generatedDependencies
-    };
-
-    this.session.generatedFiles['package.json'] = JSON.stringify(packageJson, null, 2);
-
-    return {
-      success: true,
-      files: this.session.generatedFiles,
-      tokensUsed: this.session.totalTokensUsed
-    };
+    // Scan for any new dependencies
+    const foundDeps = scanImports(code);
+    Object.assign(generatedDependencies, foundDeps);
   }
+
+  // 2️⃣ Generate required components
+  for (const file of requiredComponents) {
+    const componentName = file.replace('.tsx', '');
+    const blueprint = await loadBlueprint(componentName);
+    const prompt = buildComponentPrompt(componentName, blueprint, this.session.projectPlan);
+    const response = await this.askClaudeWithSession(prompt);
+    const tsxCode = response.output?.trim() || '';
+
+    this.session.generatedFiles[`src/components/${file}`] = tsxCode;
+
+    const foundDeps = scanImports(tsxCode);
+    Object.assign(generatedDependencies, foundDeps);
+
+    progressCallback(componentName, ((requiredComponents.indexOf(file) + 1) / requiredComponents.length) * 100);
+  }
+
+  // 3️⃣ Merge all scanned dependencies into package.json
+  packageJson.dependencies = {
+    ...packageJson.dependencies,
+    ...generatedDependencies
+  };
+
+  this.session.generatedFiles['package.json'] = JSON.stringify(packageJson, null, 2);
+
+  return {
+    success: true,
+    files: this.session.generatedFiles,
+    tokensUsed: this.session.totalTokensUsed
+  };
 }
