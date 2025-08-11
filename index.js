@@ -118,6 +118,51 @@ const safeApiKey = API_KEY;
 const app = express();
 const server = createServer(app);
 
+// Configure CORS
+const corsOptions = {
+  origin: [
+    'https://code.zapq.dev',
+    'https://zapq-ui-server.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:8080',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:8080'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'Accept',
+    'Origin'
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  preflightContinue: false
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 // Initialize Socket.IO for real-time progress updates
 const io = new Server(server, {
   cors: {
@@ -164,34 +209,6 @@ io.on('connection', (socket) => {
   });
 });
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // List of allowed origins
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:5174', 
-      'http://localhost:5175',
-      'http://localhost:5176',
-      'http://localhost:5177',
-      'https://code.zapq.dev',
-      'https://zapq-ui-main-f6uekkucl-amit-ks-projects-30a8790d.vercel.app'
-    ];
-    
-    // Allow any Vercel deployment (*.vercel.app)
-    const isVercelDomain = origin.endsWith('.vercel.app');
-    
-    if (allowedOrigins.includes(origin) || isVercelDomain) {
-      return callback(null, true);
-    }
-    
-    return callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true
-}));
 app.use(express.json());
 app.use(uploadRouter);
 
