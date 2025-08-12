@@ -77,4 +77,4 @@ export default {
     noAI: true
   },
   notes: "Template-based generation ensures correct Tailwind configuration without React code contamination"
-};
+}; 

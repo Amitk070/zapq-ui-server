@@ -13,4 +13,4 @@ export const postcssBlueprint = {
     noAI: true
   },
   notes: "Template-based generation ensures correct PostCSS configuration without React code contamination"
-};
+}; 

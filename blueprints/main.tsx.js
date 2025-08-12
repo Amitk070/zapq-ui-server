@@ -17,4 +17,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     noAI: true
   },
   notes: "Template-based generation ensures correct React 18 entry point setup without React component code contamination"
-};
+}; 

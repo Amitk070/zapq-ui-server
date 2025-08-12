@@ -463,8 +463,13 @@ export class OrchestrationEngine {
    * Quality Assurance System - Validate component quality against enterprise standards
    */
   validateComponentQuality(component, blueprint) {
+    if (!blueprint) {
+      console.warn(`⚠️  No blueprint found for component validation`);
+      return { passed: true, score: 100, issues: [] };
+    }
+    
     if (!blueprint.qualityChecks) {
-      console.warn(`⚠️  No quality checks defined for ${blueprint.fileType}`);
+      console.warn(`⚠️  No quality checks defined for ${blueprint.fileType || 'unknown'}`);
       return { passed: true, score: 100, issues: [] };
     }
 

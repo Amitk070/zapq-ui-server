@@ -1,4 +1,3 @@
-// blueprints/vite.config.ts
 export const viteConfigBlueprint = {
   generationMethod: "template",
   filePurpose: 'Generate vite.config.ts for a modern React + TypeScript + Vite project',
@@ -35,4 +34,4 @@ export default defineConfig({
     noAI: true
   },
   notes: "Template-based generation ensures correct Vite configuration without React code contamination"
-};
+}; 

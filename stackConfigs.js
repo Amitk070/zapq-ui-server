@@ -40,16 +40,16 @@ export const STACK_CONFIGS = [
     ],
 
     requiredFiles: [
-      'package.json',
-      'vite.config.ts',
-      'tsconfig.json',
-      'tsconfig.node.json',
-      'tailwind.config.js',
-      'postcss.config.js',
-      'index.html',
-      'src/main.tsx',
-      'src/index.css',
-      'src/App.tsx'
+      'packageJson',
+      'vite.config',
+      'tsconfig',
+      'tsconfig.node',
+      'tailwind.config',
+      'postcss.config',
+      'indexHtml',
+      'main.tsx',
+      'index.css',
+      'app.tsx'
     ],
 
     // Enhanced component templates (not blueprint files)
