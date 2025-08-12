@@ -120,16 +120,31 @@ const server = createServer(app);
 
 // Configure CORS
 const corsOptions = {
-  origin: [
-    'https://code.zapq.dev',
-    'https://zapq-ui-server.onrender.com',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:8080',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:8080'
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // List of explicitly allowed origins
+    const allowedOrigins = [
+      'https://code.zapq.dev',
+      'https://zapq-ui-server.onrender.com',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:8080',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:8080'
+    ];
+    
+    // Allow any Vercel deployment (*.vercel.app)
+    const isVercelDomain = origin.endsWith('.vercel.app');
+    
+    if (allowedOrigins.includes(origin) || isVercelDomain) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
@@ -151,12 +166,43 @@ app.options('*', cors(corsOptions));
 
 // Add CORS headers to all responses
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  // Get the origin from the request
+  const origin = req.headers.origin;
+  
+  // Log CORS requests for debugging
+  console.log(`🌐 CORS Request: ${req.method} ${req.path} from origin: ${origin}`);
+  
+  // Check if origin is allowed
+  if (origin) {
+    const allowedOrigins = [
+      'https://code.zapq.dev',
+      'https://zapq-ui-server.onrender.com',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:8080',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:8080'
+    ];
+    
+    // Allow any Vercel deployment (*.vercel.app)
+    const isVercelDomain = origin.endsWith('.vercel.app');
+    
+    if (allowedOrigins.includes(origin) || isVercelDomain) {
+      res.header('Access-Control-Allow-Origin', origin);
+      console.log(`✅ CORS allowed for origin: ${origin}`);
+    } else {
+      console.log(`❌ CORS blocked for origin: ${origin}`);
+    }
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
   
   if (req.method === 'OPTIONS') {
+    console.log(`🔄 CORS preflight request handled for: ${req.path}`);
     res.sendStatus(200);
   } else {
     next();
@@ -179,7 +225,8 @@ const io = new Server(server, {
         'http://localhost:5176',
         'http://localhost:5177',
         'https://code.zapq.dev',
-        'https://zapq-ui-main-f6uekkucl-amit-ks-projects-30a8790d.vercel.app'
+        'https://zapq-ui-main-f6uekkucl-amit-ks-projects-30a8790d.vercel.app',
+        'https://zapq-ui-main-evqptcuk5-amit-ks-projects-30a8790d.vercel.app'
       ];
       
       // Allow any Vercel deployment (*.vercel.app)
@@ -386,7 +433,8 @@ app.post('/orchestrate-project', async (req, res) => {
       )
     ]);
     
-    if (result.success) {
+    // Check if generation was successful by looking for files in the result
+    if (result && result.files && Object.keys(result.files).length > 0) {
       console.log(`✅ Orchestrated generation successful: ${Object.keys(result.files).length} files`);
       
       // Debug token tracking values
@@ -425,15 +473,15 @@ app.post('/orchestrate-project', async (req, res) => {
         sessionId: sessionId
       });
     } else {
-      console.log(`❌ Orchestrated generation failed:`, result.errors);
-      const errorTokens = result.tokensUsed !== undefined ? result.tokensUsed : engine.totalTokensUsed || 0;
+      console.log(`❌ Orchestrated generation failed:`, result?.errors || 'No files generated');
+      const errorTokens = result?.tokensUsed !== undefined ? result.tokensUsed : engine.totalTokensUsed || 0;
       
       // Emit error event
       if (sessionId) {
         io.to(sessionId).emit('generation-error', {
           success: false,
-          error: result.errors?.[0] || 'Project generation failed',
-          details: result.errors,
+          error: result?.errors?.[0] || 'Project generation failed - no files generated',
+          details: result?.errors || ['Generation completed but no files were created'],
           sessionId,
           timestamp: new Date().toISOString()
         });
@@ -441,8 +489,8 @@ app.post('/orchestrate-project', async (req, res) => {
       
       res.status(500).json({
         success: false,
-        error: result.errors?.[0] || 'Project generation failed',
-        details: result.errors,
+        error: result?.errors?.[0] || 'Project generation failed - no files generated',
+        details: result?.errors || ['Generation completed but no files were created'],
         tokensUsed: errorTokens,
         sessionId: sessionId
       });
@@ -529,7 +577,8 @@ app.post('/generate-project', async (req, res) => {
     // Generate project using step-by-step approach
     const result = await engine.generateProject(projectName, prompt, progressCallback);
     
-    if (result.success) {
+    // Check if generation was successful by looking for files in the result
+    if (result && result.files && Object.keys(result.files).length > 0) {
       console.log(`✅ Step-by-step generation successful: ${Object.keys(result.files).length} files`);
       
       // Get actual tokens used from the orchestration engine
@@ -857,6 +906,16 @@ app.get('/debug-api-key', (req, res) => {
     keyLength: apiKey ? apiKey.length : 0,
     keyPrefix: apiKey ? apiKey.substring(0, 7) : 'none',
     isValidFormat: apiKey ? apiKey.startsWith('sk-ant-') && apiKey.length > 40 : false
+  });
+});
+
+// Add CORS test endpoint
+app.get('/cors-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'CORS test successful',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
   });
 });
 

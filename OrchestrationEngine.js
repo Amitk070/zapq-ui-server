@@ -8,14 +8,23 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load blueprint object from /blueprints/ComponentName.ts
+// Load blueprint object from /blueprints/ComponentName.js
 async function loadBlueprint(componentName) {
-  const filePath = path.join(__dirname, 'blueprints', `${componentName}.ts`);
-  if (!fs.existsSync(filePath)) return null;
+  // Try .js first, then fallback to .ts for backward compatibility
+  let filePath = path.join(__dirname, 'blueprints', `${componentName}.js`);
+  if (!fs.existsSync(filePath)) {
+    filePath = path.join(__dirname, 'blueprints', `${componentName}.ts`);
+    if (!fs.existsSync(filePath)) return null;
+  }
 
-  const module = await import(`file://${filePath}`);
-  const key = Object.keys(module)[0];
-  return module[key];
+  try {
+    const module = await import(`file://${filePath}`);
+    const key = Object.keys(module)[0];
+    return module[key];
+  } catch (error) {
+    console.warn(`⚠️  Failed to load blueprint for ${componentName}:`, error.message);
+    return null;
+  }
 }
 
 // Enhanced prompt builder for enterprise-level generation
@@ -985,14 +994,18 @@ export default ${name};
    */
   loadBlueprintSync(componentName) {
     try {
-      const filePath = path.join(__dirname, 'blueprints', `${componentName}.ts`);
-      if (fs.existsSync(filePath)) {
-        const content = fs.readFileSync(filePath, 'utf8');
-        // Extract the blueprint object from the file content
-        const match = content.match(/export const \w+Blueprint = ({[\s\S]*});/);
-        if (match) {
-          return eval(`(${match[1]})`);
-        }
+      // Try .js first, then fallback to .ts for backward compatibility
+      let filePath = path.join(__dirname, 'blueprints', `${componentName}.js`);
+      if (!fs.existsSync(filePath)) {
+        filePath = path.join(__dirname, 'blueprints', `${componentName}.ts`);
+        if (!fs.existsSync(filePath)) return null;
+      }
+      
+      const content = fs.readFileSync(filePath, 'utf8');
+      // Extract the blueprint object from the file content
+      const match = content.match(/export const \w+Blueprint = ({[\s\S]*});/);
+      if (match) {
+        return eval(`(${match[1]})`);
       }
     } catch (error) {
       console.warn(`Could not load blueprint for ${componentName}:`, error.message);
