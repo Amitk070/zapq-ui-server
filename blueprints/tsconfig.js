@@ -1,0 +1,35 @@
+export const tsconfigBlueprint = {
+  generationMethod: "template",
+  filePurpose: 'Generate tsconfig.json for a modern React + TypeScript + Vite project',
+  template: JSON.stringify({
+    "compilerOptions": {
+      "target": "ES2020",
+      "useDefineForClassFields": true,
+      "lib": ["ES2020", "DOM", "DOM.Iterable"],
+      "module": "ESNext",
+      "skipLibCheck": true,
+      "moduleResolution": "bundler",
+      "allowImportingTsExtensions": true,
+      "resolveJsonModule": true,
+      "isolatedModules": true,
+      "noEmit": true,
+      "jsx": "react-jsx",
+      "strict": true,
+      "noUnusedLocals": true,
+      "noUnusedParameters": true,
+      "noFallthroughCasesInSwitch": true,
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./src/*"]
+      }
+    },
+    "include": ["src"],
+    "references": [{ "path": "./tsconfig.node.json" }]
+  }, null, 2),
+  variables: {},
+  validation: {
+    isTemplate: true,
+    noAI: true
+  },
+  notes: "Template-based generation ensures correct TypeScript configuration without React code contamination"
+}; 

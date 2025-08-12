@@ -40,8 +40,12 @@ export const STACK_CONFIGS = [
     ],
 
     requiredFiles: [
+      'package.json',
       'vite.config.ts',
       'tsconfig.json',
+      'tsconfig.node.json',
+      'tailwind.config.js',
+      'postcss.config.js',
       'index.html',
       'src/main.tsx',
       'src/index.css',
@@ -50,13 +54,13 @@ export const STACK_CONFIGS = [
 
     // Enhanced component templates (not blueprint files)
     enhancedComponents: [
-      'store.ts',        // Zustand state management
-      'Form.ts',         // Form components with validation
-      'Page.ts',         // Page components with routing
-      'Chart.ts',        // Data visualization components
-      'Table.ts',        // Data table components
-      'Modal.ts',        // Modal and overlay components
-      'Toast.ts'         // Notification components
+      'store',           // Zustand state management
+      'Form',            // Form components with validation
+      'Page',            // Page components with routing
+      'Chart',           // Data visualization components
+      'Table',           // Data table components
+      'Modal',           // Modal and overlay components
+      'Toast'            // Notification components
     ],
 
     templates: {

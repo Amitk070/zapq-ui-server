@@ -1,55 +1,38 @@
 // blueprints/vite.config.ts
 export const viteConfigBlueprint = {
-  fileType: "Vite Configuration",
-  purpose: "Vite build tool configuration for React + TypeScript project",
-  
-  // CRITICAL: This is NOT a React component - it's a TypeScript config file
-  criticalNote: "DO NOT generate React/TSX code. This must be a valid Vite configuration file.",
-  
-  template: {
-    imports: [
-      "import { defineConfig } from 'vite'",
-      "import react from '@vitejs/plugin-react'",
-      "import path from 'path'"
-    ],
-    
-    config: {
-      plugins: ["react()"],
-      resolve: {
-        alias: {
-          "@": "path.resolve(__dirname, './src')"
-        }
-      },
-      optimizeDeps: {
-        exclude: ['lucide-react']
-      },
-      build: {
-        outDir: 'dist',
-        sourcemap: true,
-        rollupOptions: {
-          output: {
-            manualChunks: {
-              vendor: ['react', 'react-dom'],
-              ui: ['framer-motion', 'lucide-react']
-            }
-          }
+  generationMethod: "template",
+  filePurpose: 'Generate vite.config.ts for a modern React + TypeScript + Vite project',
+  template: `import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, './src')
+    }
+  },
+  optimizeDeps: {
+    exclude: ['lucide-react']
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['framer-motion', 'lucide-react']
         }
       }
     }
-  },
-
+  }
+})`,
+  variables: {},
   validation: {
-    mustContain: ["defineConfig", "plugins", "react()"],
-    mustNotContain: ["JSX", "React component", "return <", "function Component"],
-    fileExtension: ".ts",
-    isTypeScript: true
+    isTemplate: true,
+    noAI: true
   },
-
-  notes: [
-    "This is a Vite configuration file, NOT a React component",
-    "Must use defineConfig from 'vite'",
-    "Include React plugin for JSX support",
-    "Set up path aliases for clean imports",
-    "Configure build optimization and chunking"
-  ]
+  notes: "Template-based generation ensures correct Vite configuration without React code contamination"
 };
