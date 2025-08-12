@@ -48,8 +48,8 @@ export const STACK_CONFIGS = [
       'src/App.tsx'
     ],
 
-    // New enhanced blueprints
-    enhancedBlueprints: [
+    // Enhanced component templates (not blueprint files)
+    enhancedComponents: [
       'store.ts',        // Zustand state management
       'Form.ts',         // Form components with validation
       'Page.ts',         // Page components with routing

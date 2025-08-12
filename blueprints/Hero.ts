@@ -3,6 +3,27 @@ export const heroBlueprint = {
   fileType: "React Component",
   purpose: "Hero section component with enterprise-level design, animations, and modern UI patterns",
   
+  // Quality Assurance System
+  qualityChecks: {
+    mustHave: [
+      "Framer Motion animations with staggered reveals",
+      "Responsive design with mobile-first approach",
+      "Accessibility features (WCAG AA compliant)",
+      "Modern UI patterns (gradients, glassmorphism)",
+      "TypeScript interfaces with proper prop types",
+      "High-quality image integration with alt text",
+      "Call-to-action buttons with hover effects",
+      "Professional copywriting and typography"
+    ],
+    designSystem: {
+      colors: ["gradients", "glassmorphism", "dark mode support"],
+      animations: ["entrance", "hover", "scroll-triggered", "staggered"],
+      responsive: ["mobile-first", "breakpoint system", "touch-friendly"],
+      accessibility: ["ARIA labels", "semantic HTML", "focus management"]
+    },
+    minimumScore: 90 // Higher threshold for hero components
+  },
+  
   features: {
     headline: "Compelling value proposition with gradient text",
     subtext: "Professional copy that explains the solution",
@@ -96,21 +117,42 @@ export const heroBlueprint = {
     scroll: "Smooth scroll indicator to next section"
   },
 
+  // Quality Validation Rules
   validation: {
-    mustContain: ["semantic HTML", "accessibility features", "responsive design", "animations"],
-    mustNotContain: ["hardcoded text", "inline styles", "accessibility violations"],
+    mustContain: [
+      "import { motion } from 'framer-motion'",
+      "interface HeroProps",
+      "<section",
+      "gradient",
+      "backdrop-blur",
+      "aria-",
+      "focus:ring",
+      "hover:",
+      "transition-",
+      "dark:",
+      "md:",
+      "lg:"
+    ],
+    mustNotContain: [
+      "any",
+      "console.log",
+      "alert(",
+      "inline styles",
+      "!important",
+      "Lorem ipsum"
+    ],
     fileExtension: ".tsx",
     isReactComponent: true
   },
 
   notes: [
-    "Generate a modern, enterprise-quality hero component",
-    "Include Framer Motion for smooth animations",
-    "Use Tailwind CSS for responsive design",
-    "Implement glassmorphism and modern UI patterns",
+    "Generate a professional, enterprise-level hero component",
+    "Include compelling copywriting and value proposition",
+    "Implement smooth animations with Framer Motion",
+    "Use modern UI patterns (gradients, glassmorphism)",
     "Ensure accessibility compliance (WCAG AA)",
-    "Optimize for performance and SEO",
-    "Include optional form integration",
-    "Support video backgrounds and scroll effects"
+    "Implement responsive design with mobile-first approach",
+    "Must meet enterprise quality standards (score >= 90)",
+    "Include high-quality image integration and CTA buttons"
   ]
 };
